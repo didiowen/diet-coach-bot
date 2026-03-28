@@ -1,3 +1,7 @@
+![GitHub stars](https://img.shields.io/github/stars/htlin222/claude-telegram-bot?style=flat-square)
+![Last commit](https://img.shields.io/github/last-commit/htlin222/claude-telegram-bot?style=flat-square)
+![License](https://img.shields.io/github/license/htlin222/claude-telegram-bot?style=flat-square)
+
 # Claude Telegram Bot
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
