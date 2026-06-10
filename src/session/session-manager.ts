@@ -52,6 +52,7 @@ class SessionManager {
 
 			if (!loaded) {
 				// New session: use global default working dir
+				{ const hostIds_p13 = String(process.env.CTB_HOST_CHAT_IDS || "").split(",").map((s) => s.trim()).filter(Boolean); if (hostIds_p13.length > 0 && !hostIds_p13.includes(String(chatId))) { throw new Error("No session.json for chat " + chatId + ", and CTB_HOST_CHAT_IDS does not include it — refusing fallback to default WORKING_DIR. Run ctb-prepopulate.sh first."); } }
 				session.setWorkingDir(WORKING_DIR);
 			}
 
