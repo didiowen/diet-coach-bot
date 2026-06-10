@@ -80,7 +80,7 @@ class SessionManager {
 			const text = readFileSync(sessionFile, "utf-8");
 			const data: SessionData = JSON.parse(text);
 
-			if (!data.session_id || data.version !== SESSION_VERSION) {
+			if (data.version !== SESSION_VERSION) {
 				return false;
 			}
 
@@ -92,7 +92,7 @@ class SessionManager {
 			}
 
 			console.log(
-				`Loaded session for chat ${chatId}: ${data.session_id.slice(0, 8)}...`,
+				`Loaded session for chat ${chatId}: ${(data.session_id ?? "no-id").slice(0, 8)}...`,
 			);
 			return true;
 		} catch (error) {

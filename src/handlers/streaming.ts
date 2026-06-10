@@ -451,7 +451,7 @@ export function createStatusCallback(
 
 				// Build usage info string if available
 				// Action buttons now always shown (not conditional on hasToolExecution)
-				let doneMessage = "Done";
+				return; /* done footer disabled by patch-ctb.sh */ let doneMessage = "Done";
 				if (usage) {
 					const inK = Math.round(usage.input_tokens / 1000);
 					const outK = Math.round(usage.output_tokens / 1000);
@@ -492,7 +492,7 @@ export function createStatusCallback(
 						await telegramRateLimiter.acquireSlot(ctx.chat?.id);
 						return await withRetry(() =>
 							ctx.reply(doneMessage, {
-								reply_markup: actionKeyboard,
+								/* reply_markup removed by patch-ctb.sh */
 								message_effect_id: effectFor(ctx, MESSAGE_EFFECTS.CONFETTI),
 							}),
 						);

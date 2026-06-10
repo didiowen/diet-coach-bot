@@ -2,7 +2,7 @@
  * ClaudeSession class - manages Claude Code sessions using the Agent SDK V1.
  */
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, realpathSync } from "node:fs";
 import type { Context } from "grammy";
 import { resolvePath } from "../bookmarks";
 import {
@@ -492,7 +492,7 @@ class ClaudeSession {
 			settingSources: ["user", "project"],
 			permissionMode: this.planMode ? "plan" : "bypassPermissions",
 			allowDangerouslySkipPermissions: !this.planMode,
-			systemPrompt: SAFETY_PROMPT,
+			systemPrompt: SAFETY_PROMPT + "\n\nYour current working directory is " + this._workingDir + ". You have full access to files in this directory and its subdirectories (in addition to paths listed above).\n\nThis bot is dedicated to diet tracking. For ANY user message about food (photos, descriptions, nutrition queries), or any food-related question, use the diet-coach skill at .claude/skills/diet-coach/SKILL.md in your working directory. Default behavior is diet logging; only deviate when the user explicitly requests something non-diet-related.\n\nIMPORTANT FIRST-MESSAGE BEHAVIOR: If this is the very first message in this conversation (no prior turns from you exist), check whether WELCOME.md exists in your working directory. If it exists, your VERY FIRST reply must be the verbatim full content of WELCOME.md (no edits, no paraphrasing, no commentary). Only after that initial greeting do you proceed with the user actual request.",
 			mcpServers: MCP_SERVERS,
 			maxThinkingTokens: thinkingTokens,
 			additionalDirectories: ALLOWED_PATHS,
@@ -675,7 +675,7 @@ class ClaudeSession {
 										(TEMP_PATHS.some((p) => filePath.startsWith(p)) ||
 											filePath.includes("/.claude/"));
 
-									if (!isTmpRead && !isPathAllowed(filePath)) {
+									let resolvedFilePath_p9 = filePath; try { resolvedFilePath_p9 = realpathSync(filePath); } catch (_e) {} if (!isTmpRead && !isPathAllowed(filePath) && resolvedFilePath_p9 !== this._workingDir && !resolvedFilePath_p9.startsWith(this._workingDir + "/")) {
 										console.warn(
 											`BLOCKED: File access outside allowed paths: ${filePath}`,
 										);
@@ -697,7 +697,7 @@ class ClaudeSession {
 											: "";
 									if (!rawPath) continue;
 									const resolvedPath = resolvePath(rawPath, this._workingDir);
-									if (!isPathAllowed(resolvedPath)) {
+									let realResolvedPath_p9 = resolvedPath; try { realResolvedPath_p9 = realpathSync(resolvedPath); } catch (_e) {} if (!isPathAllowed(resolvedPath) && realResolvedPath_p9 !== this._workingDir && !realResolvedPath_p9.startsWith(this._workingDir + "/")) {
 										console.warn(
 											`BLOCKED: Codex file access outside allowed paths: ${resolvedPath}`,
 										);
