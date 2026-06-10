@@ -40,6 +40,8 @@ rl.on("line", async (line) => {
 					.map((p) => p.trim())
 					.filter(Boolean);
 
+		if (request.cwd) allowedPaths.push(request.cwd);
+
 		const isPathAllowed = (targetPath) => {
 			if (!targetPath) return false;
 			if (allowedPaths.length === 0 && tempPaths.length === 0) return true;
