@@ -173,7 +173,7 @@ export function isPathAllowed(path: string): boolean {
 
 		// Check against allowed paths using proper containment
 		for (const allowed of ALLOWED_PATHS) {
-			const allowedResolved = resolve(allowed);
+			const allowedResolved = resolve(allowed.replace(/^~/, process.env.HOME || ""));
 			if (
 				resolved === allowedResolved ||
 				resolved.startsWith(`${allowedResolved}/`)

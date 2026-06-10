@@ -61,7 +61,7 @@ rl.on("line", async (line) => {
 			}
 
 			for (const allowed of allowedPaths) {
-				const allowedResolved = resolve(allowed);
+				const allowedResolved = resolve(allowed.replace(/^~/, process.env.HOME || ""));
 				if (
 					resolved === allowedResolved ||
 					resolved.startsWith(`${allowedResolved}/`)
