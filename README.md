@@ -7,6 +7,18 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Bun](https://img.shields.io/badge/Bun-1.0+-black.svg)](https://bun.sh/)
 
+> **Fork notice**: 這是 [htlin222/claude-telegram-bot](https://github.com/htlin222/claude-telegram-bot) 的 fork，
+> 為 [diet-coach](https://github.com/didiowen/diet-coach) 專案做了強化：
+> - Claude model IDs 更新到 4.6/4.7 與 haiku-4-5（upstream 可能落後）
+> - `ALLOWED_PATHS` `~` expansion bug fix
+> - 可選 **multi-tenant 模式**（友善共享 bot 用，預設關閉；設 `CTB_HOST_CHAT_IDS=<chat_id>` 啟用）
+> - 移除 token-usage footer（"Done | XK→YK 🎉"）與 inline action keyboard，降噪
+> - Telegram menu 精簡到 10 個 diet-coach 常用 commands
+>
+> 安裝：`npm install -g github:didiowen/diet-coach-bot`（需 Bun ≥ 1.0）
+>
+> 其餘文件、功能、安全模型完全沿用 upstream。
+
 **Repository description:** A Telegram bot that lets you drive Claude Code from your phone with streaming replies, file tooling, and MCP integrations.
 
 **中文說明**: [README.zh.md](README.zh.md)
