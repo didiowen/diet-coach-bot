@@ -450,9 +450,9 @@ class ClaudeSession {
 
 		// Determine model based on currentModel setting
 		const modelMap = {
-			sonnet: "claude-sonnet-4-5",
-			opus: "claude-opus-4-5",
-			haiku: "claude-haiku-3-5",
+			sonnet: "claude-sonnet-4-6",
+			opus: "claude-opus-4-7",
+			haiku: "claude-haiku-4-5-20251001",
 		};
 		const modelId = modelMap[this.currentModel];
 
