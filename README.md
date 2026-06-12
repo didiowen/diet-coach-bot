@@ -3,328 +3,319 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Bun](https://img.shields.io/badge/Bun-1.0+-black.svg)](https://bun.sh/)
 
-> **Fork notice**: This is a fork of [htlin222/claude-telegram-bot](https://github.com/htlin222/claude-telegram-bot) hardened
-> for the [diet-coach](https://github.com/didiowen/diet-coach) deployment, where one host (the vault owner) shares a single
-> Telegram bot with a small number of trusted friends. The general-purpose ctb features below are still available; this fork
-> adds the following diet-coach-specific behaviors on top:
+> **Fork 說明**：本專案是 [htlin222/claude-telegram-bot](https://github.com/htlin222/claude-telegram-bot) 的 fork，
+> 針對 [diet-coach](https://github.com/didiowen/diet-coach) 的多租戶場景強化 —— 一位 host（vault 擁有者）跟少數信任的朋友
+> 共用同一個 Telegram bot。下方所有 upstream ctb 通用功能仍可用，本 fork 在其上加入下列 diet-coach 專屬行為：
 >
-> - **Multi-tenant sandboxing** — host gets full vault access; each friend's chat is sandboxed to its own per-chat working
->   directory (`CTB_HOST_CHAT_IDS` opts the host out of the sandbox). Friends cannot read host paths.
-> - **Auto-load diet-coach skill** — every session's system prompt injects a pointer to `.claude/skills/diet-coach/SKILL.md`
->   in the working directory, so food-related messages always run through the diet skill without explicit `/skill` invocation.
-> - **`WELCOME.md` first-message** — if `WELCOME.md` exists in the working directory, the bot's very first reply in a fresh
->   session is the verbatim file contents (used for friend onboarding / disclosure).
-> - **Symlink-resolved per-session path bypass** — Read / Write / Edit / Bash paths under `realpath(working_dir)` are allowed
->   in addition to global `ALLOWED_PATHS`, so `~/.claude/skills/*` symlinks into the vault work transparently. The Codex
->   worker is patched to honor the same per-session cwd bypass.
-> - **Aborted-query session auto-clear** — if a query is interrupted before the SDK emits `result`, the session pointer is
->   dropped so the next message starts fresh instead of resuming a corrupt jsonl that short-circuits to `in=0 out=0` (see
->   PR [#3](https://github.com/didiowen/diet-coach-bot/pull/3)).
-> - **Cosmetic trims** — Telegram menu reduced to 10 diet-coach commands; token-usage footer (`Done | XK→YK 🎉`) and inline
->   action keyboard removed to keep the chat clean.
-> - **Latest Claude model IDs** — `claude-sonnet-4-6`, `claude-opus-4-7`, `claude-haiku-4-5` (upstream may lag).
+> - **多租戶 sandbox** —— host 享有完整 vault 存取；每位朋友的聊天室會被沙箱到自己的 per-chat 工作目錄
+>   （用 `CTB_HOST_CHAT_IDS` 把 host 排除在沙箱外），朋友看不到 host 的檔案。
+> - **自動載入 diet-coach skill** —— 每個 session 的 system prompt 都會注入指向 `.claude/skills/diet-coach/SKILL.md` 的
+>   pointer，飲食相關訊息一律走這個 skill，不需要顯式 `/skill`。
+> - **`WELCOME.md` 首訊息** —— 若工作目錄裡有 `WELCOME.md`，新 session 的第一則回覆會 verbatim 輸出檔案內容（朋友 onboarding /
+>   免責聲明）。
+> - **Symlink-resolved per-session 路徑放行** —— `realpath(working_dir)` 底下的 Read/Write/Edit/Bash 路徑會額外被放行，
+>   所以 `~/.claude/skills/*` symlink 進 vault 也能直接用。Codex worker 也 patch 過，同樣套用 per-session cwd 放行。
+> - **中斷 query 自動清掉 session** —— 若 SDK 還沒 emit `result` 之前 query 被打斷（例如回覆還在串流就送下一條），
+>   session pointer 會被丟掉，下一條訊息開新 session，避免 resume 壞掉的 jsonl 觸發 `in=0 out=0` synthetic 短路
+>   （PR [#3](https://github.com/didiowen/diet-coach-bot/pull/3)）。
+> - **降噪** —— Telegram menu 精簡到 10 個 diet-coach 常用 commands；移除 token-usage footer（`Done | XK→YK 🎉`）與
+>   inline action keyboard。
+> - **最新 Claude model IDs** —— `claude-sonnet-4-6`、`claude-opus-4-7`、`claude-haiku-4-5`（upstream 可能落後）。
 >
-> Install: `npm install -g github:didiowen/diet-coach-bot` (requires Bun ≥ 1.0). Everything else (commands, security model,
-> group chat, file index) is inherited from upstream and documented below.
+> 安裝：`npm install -g github:didiowen/diet-coach-bot`（需 Bun ≥ 1.0）。其他功能、安全模型、群組聊天、檔案索引等
+> 完全沿用 upstream，文件如下。
 
-**Repository description:** A Telegram bot that runs a personal Claude Code (or Codex) coach against a host vault, with
-optional sandboxed access for trusted friends. Diet-tracking is the canonical use case; the underlying ctb is general-purpose.
+**Repo 描述：** 在 host vault 上跑個人化 Claude Code（或 Codex）coach 的 Telegram bot，可選擇性開放沙箱給信任朋友。
+飲食追蹤是 canonical 用途；底層 ctb 是通用的。
 
-**中文說明**: [README.zh.md](README.zh.md)
+**English**: [README.en.md](README.en.md)
 
-## Overview
+## 總覽
 
-`diet-coach-bot` connects Telegram → Claude Code (or Codex) and streams responses (including tool status) back to your chat.
-It is built on Bun + grammY and the official `@anthropic-ai/claude-agent-sdk`. The fork adds a multi-tenant host/friend
-sandbox model, an auto-loaded diet-coach skill, and a verbatim first-message onboarding flow — see the fork notice above
-and the [Diet-coach mode](#diet-coach-mode) section for details.
+`diet-coach-bot` 把 Telegram 接到 Claude Code（或 Codex），把回覆與工具狀態即時串流回聊天室。底層用 Bun + grammY 跟
+官方 `@anthropic-ai/claude-agent-sdk`。fork 在其上加了 host/friend 沙箱、auto-load 的 diet-coach skill、verbatim
+WELCOME.md 首訊息 —— 參見上方 fork 說明與下方 [Diet-coach 模式](#diet-coach-模式) 章節。
 
-## Diet-coach mode
+## Diet-coach 模式
 
-The diet-coach-specific behaviors are always active in this fork (there is no on/off switch — they layer on top of ctb).
+下列 diet-coach 專屬行為在本 fork 中永遠啟用（沒有開關 —— 它們疊加在 ctb 之上）。
 
-### Host vs. friend
+### Host 與朋友
 
-| Aspect | Host (vault owner) | Friend (sandboxed) |
+| 項目 | Host（vault 擁有者）| 朋友（沙箱）|
 |---|---|---|
-| Telegram authorization | `TELEGRAM_ALLOWED_USERS` includes them | Same |
-| Working directory | Bot's `WORKING_DIR` (typically the vault root) | Per-chat sandbox dir, pre-populated in `/tmp/ctb-*/sessions/<chat>.json` before the friend's first DM |
-| File access | Global `ALLOWED_PATHS` + the vault | Their own sandbox dir only (no vault access) |
-| `WELCOME.md` shown on first message | Optional | Recommended — used for onboarding / disclosure |
-| `CTB_HOST_CHAT_IDS` env | Set to the host's chat IDs | Not listed |
+| Telegram 授權 | `TELEGRAM_ALLOWED_USERS` 列入 | 同樣列入 |
+| 工作目錄 | bot 的 `WORKING_DIR`（通常是 vault root）| Per-chat 沙箱目錄，朋友首次 DM 前先 pre-populate 到 `/tmp/ctb-*/sessions/<chat>.json` |
+| 檔案存取 | 全域 `ALLOWED_PATHS` + vault | 只能讀寫自己的沙箱目錄 |
+| 首訊息顯示 `WELCOME.md` | 可選 | 建議 —— 用來做 onboarding／免責聲明 |
+| `CTB_HOST_CHAT_IDS` 環境變數 | 把 host 的 chat ID 填進去 | 不列入 |
 
-Setting `CTB_HOST_CHAT_IDS=<chat_id>,<chat_id>` is what marks specific chats as the host's. Friends' chats are not listed
-there and are sandboxed automatically.
+`CTB_HOST_CHAT_IDS=<chat_id>,<chat_id>` 是用來「標記哪些 chat 屬於 host」的開關。沒列在裡面的朋友 chat 會自動進入沙箱。
 
 ### `.claude/skills/diet-coach/SKILL.md`
 
-The system prompt sent to every Claude session ends with:
+每個 Claude session 的 system prompt 結尾固定加上：
 
 > *"This bot is dedicated to diet tracking. For ANY user message about food (photos, descriptions, nutrition queries), or
 > any food-related question, use the diet-coach skill at `.claude/skills/diet-coach/SKILL.md` in your working directory.
 > Default behavior is diet logging; only deviate when the user explicitly requests something non-diet-related."*
 
-So you provision each working directory (host vault and each friend sandbox) with a `.claude/skills/diet-coach/SKILL.md` —
-this is what the bot reads on every turn. The canonical skill lives in the
-[diet-coach](https://github.com/didiowen/diet-coach) repo; symlink it into each working dir.
+所以你要在每個工作目錄（host vault 和每位朋友的沙箱目錄）放好 `.claude/skills/diet-coach/SKILL.md`。bot 每一輪都會讀它。
+canonical skill 放在 [diet-coach](https://github.com/didiowen/diet-coach) repo，symlink 到每個工作目錄即可。
 
 ### `WELCOME.md`
 
-If `WELCOME.md` exists in the working directory, the bot's first reply in a fresh session must be the verbatim file
-contents (no edits, no paraphrasing). Subsequent turns proceed normally. This is the recommended way to deliver onboarding
-text / disclosure language to friends without writing custom code.
+若工作目錄存在 `WELCOME.md`，新 session 第一則回覆必須 verbatim 輸出檔案內容（不修改、不改寫、不額外評論）。
+之後的對話正常進行。這是把 onboarding 文字 / 免責聲明遞給朋友的推薦做法，不需要寫額外程式碼。
 
-### Aborted-query auto-clear
+### 中斷 query 自動清 session
 
-If a query is interrupted before the SDK emits its `result` event (e.g. the user fires a second message while the first is
-still streaming), the session jsonl ends with a dangling `[Request interrupted by user]` user turn. Resuming that session
-causes the Agent SDK to short-circuit with a synthetic `"No response requested."` reply and `in=0 out=0` tokens — every
-subsequent message hangs forever, even across `ctb` restarts. This fork detects the aborted-without-`result` case in the
-session's `finally` block and drops both the in-memory `sessionId` and the on-disk `/tmp/ctb-*/sessions/<chat>.json`
-pointer, so the next message starts a fresh session instead of resuming the corrupt one. PR
-[#3](https://github.com/didiowen/diet-coach-bot/pull/3).
+如果一條 query 在 SDK emit `result` 之前被中斷（例如使用者在前一條還在串流時就送下一條），session jsonl 會以一個
+懸空的 `[Request interrupted by user]` user turn 收尾。下次 resume 這條 session 時，Agent SDK 會直接短路成
+synthetic 的 `"No response requested."` 加 `in=0 out=0` —— 之後每條訊息都會「卡住」，連 `ctb` 重啟都救不了。
+本 fork 在 session 的 `finally` 區塊偵測「沒收到 `result` 就結束」的情境，把記憶體裡的 `sessionId` 跟磁碟上的
+`/tmp/ctb-*/sessions/<chat>.json` pointer 一起丟掉，下次訊息會自然開新 session 而非 resume 壞掉的那條。
+PR [#3](https://github.com/didiowen/diet-coach-bot/pull/3)。
 
-## Features
+## 功能
 
-- 🥗 **Diet-coach mode** (this fork): host/friend sandboxing, auto-loaded SKILL.md, verbatim WELCOME.md — see [above](#diet-coach-mode)
-- 🤖 **Dual provider**: Claude (default) or Codex — switch per-session with `/provider`
-- 💬 Text, 🎤 voice (with transcript editing), 📸 photos, 📄 documents
-- ⚡ Streaming responses with live tool status
-- 📨 Message queueing while Claude is busy
-- 🔘 Inline action buttons via `ask_user` MCP
-- 🧠 Thinking/plan/compact modes
-- 🧵 Session persistence and `/resume`
-- 📁 Git worktrees, `/diff`, `/undo`, `/file`
-- 🗂️ File listing helpers: `/image`, `/pdf`, `/docx`, `/html`
-- ✏️ Voice transcript confirmation and editing before sending to Claude
-- 🔄 Smart `/restart` with TTY mode detection and confirmation dialog
-- 👥 **Group chat support**: Add bot to groups, require @mention to respond (v1.4.3+)
-- 🛡️ Safety layers: allowlist, rate limits, path checks, command guardrails, audit log
-- 🗂️ Per-chat sessions: each Telegram chat has its own independent Claude session
+- 🥗 **Diet-coach 模式**（本 fork）：host/friend 沙箱、自動載入 SKILL.md、verbatim WELCOME.md —— 見[上方](#diet-coach-模式)
+- 🤖 **雙 provider**：Claude（預設）或 Codex —— 用 `/provider` 切換
+- 💬 文字、🎤 語音（支援轉錄編輯）、📸 圖片、📄 文件
+- ⚡ 串流回覆與工具狀態
+- 📨 Claude 忙碌時自動排隊訊息
+- 🔘 透過 `ask_user` MCP 的按鈕互動
+- 🧠 thinking / plan / compact 模式
+- 🧵 Session 持久化與 `/resume`
+- 📁 Git worktree、`/diff`、`/undo`、`/file`
+- 🗂️ 快速列檔：`/image`、`/pdf`、`/docx`、`/html`
+- ✏️ 語音轉錄確認與編輯功能，送給 Claude 前可先檢查與補充
+- 🔄 智慧型 `/restart` 指令，支援 TTY 模式偵測與確認對話框
+- 👥 **群組聊天支援**：將機器人加入群組，需 @提及才會回應（v1.4.3+）
+- 🛡️ 安全層：白名單、限流、路徑檢查、指令保護、稽核紀錄
+- 🗂️ 分聊天室 Session：每個 Telegram 聊天室擁有獨立的 Claude session
 
-## API Docs
+## API 文件
 
 `https://htlin222.github.io/claude-telegram-bot/`
 
-## Quick Start
+## 快速開始
 
-### Prerequisites
+### 需求
 
 - **Bun 1.0+**
-- **Telegram Bot Token** from @BotFather
-- **Claude Code CLI** (recommended, for SDK CLI auth)
-- **OpenAI API Key** (optional, for voice transcription)
+- **Telegram Bot Token**（向 @BotFather 申請）
+- **Claude Code CLI**（建議，供 SDK CLI 登入）
+- **OpenAI API Key**（可選，用於語音轉文字）
 
-### Install from GitHub (Recommended)
+### 從 GitHub 安裝（建議）
 
-Install this fork directly via the GitHub URL (the upstream `ctb` package on npm is the unforked version):
+直接透過 GitHub URL 安裝本 fork（npm 上的 `ctb` 是未 fork 的 upstream 版本）：
 
 ```bash
 npm install -g github:didiowen/diet-coach-bot
 
-# Show setup tutorial
+# 顯示設定教學
 ctb tut
 
-# Run in your vault / working directory
+# 在 vault / 工作目錄啟動
 cd ~/vault
 ctb
 ```
 
-On first run, `ctb` will prompt for your Telegram bot token and allowed user IDs, then optionally save them to `.env`.
+首次執行時，`ctb` 會提示輸入 Telegram Bot Token 與允許的使用者 ID，並可選擇寫入 `.env`。
 
-### Install from Source
+### 從原始碼安裝
 
 ```bash
 git clone https://github.com/didiowen/diet-coach-bot
 cd diet-coach-bot
 
 cp .env.example .env
-# Edit .env with your credentials
+# 編輯 .env
 
 bun install
 bun run start
 ```
 
-### Configure Environment
+### 環境設定
 
 ```bash
-# Required
+# 必填
 TELEGRAM_BOT_TOKEN=1234567890:ABC-DEF...
 TELEGRAM_ALLOWED_USERS=123456789
 
-# Optional
-CLAUDE_WORKING_DIR=/path/to/your/folder    # Fallback working directory
-OPENAI_API_KEY=sk-...                      # For voice transcription
+# 選填
+CLAUDE_WORKING_DIR=/path/to/your/folder    # 備用工作目錄
+OPENAI_API_KEY=sk-...                      # 語音轉文字
 
-# Diet-coach mode (fork-specific)
-CTB_HOST_CHAT_IDS=123456789                # Chat IDs that get the host's full vault access.
-                                           # Any allowed chat NOT listed here is sandboxed to
-                                           # its own per-chat working dir (friend mode).
-ALLOWED_PATHS=~/vault,~/.claude/skills     # Extra paths the host may read/write. `~` is
-                                           # expanded; friends are still capped to their
-                                           # per-session working dir on top of this.
+# Diet-coach 模式（本 fork 專屬）
+CTB_HOST_CHAT_IDS=123456789                # 標記為 host 的 chat ID（可讀寫整個 vault）。
+                                           # 已授權但沒列在這裡的 chat 會被沙箱成朋友模式。
+ALLOWED_PATHS=~/vault,~/.claude/skills     # host 額外可讀寫的路徑。`~` 會展開；
+                                           # 朋友仍會被限制到自己的 per-session 工作目錄。
 ```
 
-### Working Directory
+### 工作目錄
 
-The bot determines the working directory in this order:
+Bot 依以下順序決定工作目錄：
 
-1. **CLI `--dir` flag**: `ctb --dir ~/my-project`
-2. **Current directory**: Where you run `ctb` (most common)
-3. **`CLAUDE_WORKING_DIR`**: Environment variable fallback
-4. **`$HOME`**: Last resort default
+1. **CLI `--dir` 參數**：`ctb --dir ~/my-project`
+2. **當前目錄**：執行 `ctb` 時所在的目錄（最常見）
+3. **`CLAUDE_WORKING_DIR`**：環境變數備用
+4. **`$HOME`**：最後預設值
 
-**Typical usage:**
+**常見用法：**
 
 ```bash
 cd ~/my-project
-ctb              # Working dir = ~/my-project
+ctb              # 工作目錄 = ~/my-project
 ```
 
-**Claude SDK authentication (recommended):**
+**Claude SDK 認證（建議）：**
 
-- This bot uses `@anthropic-ai/claude-agent-sdk`.
-- Prefer **CLI auth**: run `claude` once and sign in. This uses your Claude Code subscription and is typically more cost-effective.
-- Use `ANTHROPIC_API_KEY` only if you cannot use CLI auth (headless/CI environments).
+- 本專案使用 `@anthropic-ai/claude-agent-sdk`。
+- 優先使用 **CLI 登入**：執行一次 `claude` 並登入。這會使用 Claude Code 訂閱，通常成本較低。
+- 只有在無法 CLI 登入（如 CI/無頭環境）時才使用 `ANTHROPIC_API_KEY`。
 
-## Group Chat Support
+## 群組聊天支援
 
-Add the bot to Telegram groups for collaborative debugging! 👥
+將機器人加入 Telegram 群組，實現協作除錯！👥
 
-### How It Works
+### 運作方式
 
-- **@mention required**: Bot only responds when mentioned with `@bot_username` in groups
-- **Private chats unchanged**: No mention needed in direct messages
-- **Authorization**: Only `TELEGRAM_ALLOWED_USERS` can control the bot
-- **Visibility**: Authorized users' conversations are visible to all group members
-- **Privacy**: Unauthorized users get private notifications (not visible to group)
+- **需要 @提及**：在群組中必須 `@bot_username` 提及機器人才會回應
+- **私聊不變**：私人訊息不需要提及
+- **授權控制**：只有 `TELEGRAM_ALLOWED_USERS` 中的用戶可以操作機器人
+- **可見性**：授權用戶的對話所有群組成員都看得到
+- **隱私保護**：未授權用戶會收到私訊通知（群組中不顯示）
 
-### Usage Example
+### 使用範例
 
 ```
-Alice (authorized): @mybot what's the current git status?
-Bot: [Shows git status to everyone]
+小明（已授權）：@mybot 目前的 git 狀態是什麼？
+機器人：[顯示 git status 給所有人看]
 
-Bob (unauthorized): @mybot help me debug
-Bot: [Sends private message to Bob: "You are not authorized..."]
+小華（未授權）：@mybot 幫我除錯
+機器人：[私訊小華：「您未被授權使用此機器人...」]
 
-Alice: Let's fix this bug together
-[No @mention, bot ignores - normal group chat]
+小明：我們一起修這個 bug 吧
+[沒有 @提及，機器人忽略 - 正常群組聊天]
 
-Alice: @mybot check the logs
-Bot: [Responds to Alice, everyone sees the response]
+小明：@mybot 檢查一下日誌
+機器人：[回應小明，所有人都看得到回覆]
 ```
 
-### Setup
+### 設定步驟
 
-1. Add bot to group via @BotFather settings
-2. Configure `TELEGRAM_ALLOWED_USERS` with authorized user IDs
-3. Group members @mention the bot to interact
-4. Bot maintains per-chat session (each group has independent context)
+1. 透過 @BotFather 設定將機器人加入群組
+2. 在 `TELEGRAM_ALLOWED_USERS` 中設定授權用戶 ID
+3. 群組成員使用 @提及與機器人互動
+4. 機器人為每個聊天室維護獨立 session（每個群組有獨立的對話上下文）
 
-**Perfect for pair programming, code reviews, and team debugging!**
+**非常適合結對編程、程式碼審查和團隊除錯！**
 
-## Commands
+## 指令
 
 ### Session
 
 - `/start` `/new` `/resume` `/stop` `/status` `/retry` `/handoff` `/pending` `/restart`
-- `/sessions` - List all active sessions across chats
+- `/sessions` - 列出所有聊天室的 session
 
-### Model & Reasoning
+### 模型與推理
 
 - `/model` `/provider` `/think` `/plan` `/compact` `/cost`
 
-### Files & Worktrees
+### 檔案與 Worktree
 
 - `/cd` `/worktree` `/branch` `/diff` `/file` `/undo` `/bookmarks`
-- File listing: `/image` `/pdf` `/docx` `/html`
-- **File search**: `/search <filename>` - Lightning-fast SQLite-powered search
-  - 1 file found → Auto-sends the file
-  - 2-3 files → Shows download buttons
-  - 4+ files → Shows compact list
-- **File indexing**: `/rebuild_index` `/index_stats` - Manage file index
-- **Auto file send**: Just say "把檔案給我看" or "send me the file" after Claude mentions files, and the bot will automatically detect and send them!
+- 列檔：`/image` `/pdf` `/docx` `/html`
+- **檔案搜尋**：`/search <檔名>` - SQLite 索引極速搜尋
+  - 找到 1 個檔案 → 自動傳送檔案
+  - 找到 2-3 個 → 顯示下載按鈕
+  - 找到 4+ 個 → 顯示精簡列表
+- **索引管理**：`/rebuild_index` `/index_stats` - 管理檔案索引
+- **自動傳檔**：當 Claude 提到檔案後，只要說「把檔案給我看」或 "send me the file"，bot 就會自動偵測並傳送檔案！
 
 ### Shell
 
-Prefix a message with `!` to run it in the working directory:
+訊息前綴 `!` 會在工作目錄執行：
 
 ```
 !ls -la
 !git status
 ```
 
-## Per-Chat Sessions
+## 分聊天室 Session
 
-Each Telegram chat maintains its own independent Claude session:
+每個 Telegram 聊天室擁有獨立的 Claude session：
 
-- **Multiple projects**: Work on different projects in separate Telegram chats
-- **Independent history**: Each chat has its own conversation context
-- **Separate working dirs**: Use `/cd` in each chat to set different directories
-- **Session persistence**: Sessions survive bot restarts
+- **多專案並行**：在不同聊天室處理不同專案
+- **獨立歷史紀錄**：每個聊天室有自己的對話上下文
+- **獨立工作目錄**：每個聊天室用 `/cd` 設定不同目錄
+- **Session 持久化**：Bot 重啟後自動恢復
 
-**Example workflow:**
+**使用範例：**
 
 ```
-Chat A: /cd ~/frontend    → Frontend development
-Chat B: /cd ~/backend     → Backend API work
-Chat C: /cd ~/docs        → Documentation
+聊天室 A: /cd ~/frontend    → 前端開發
+聊天室 B: /cd ~/backend     → 後端 API
+聊天室 C: /cd ~/docs        → 文件撰寫
 ```
 
-Use `/sessions` to view all active sessions across chats.
+用 `/sessions` 查看所有聊天室的 session 狀態。
 
-## File Indexing & Search
+## 檔案索引與搜尋
 
-The bot includes a high-performance file indexing system powered by SQLite:
+Bot 內建 SQLite 驅動的高效能檔案索引系統：
 
-### Features
+### 功能特色
 
-- **Lightning-fast search**: 50-200x faster than filesystem scanning (<10ms vs 500-2000ms)
-- **Real-time updates**: File watcher automatically updates index on file add/change/delete
-- **Smart auto-send**:
-  - 1 file found → Automatically sends the file
-  - 2-3 files → Shows download buttons for quick access
-  - 4+ files → Shows compact list with file details
-- **Recent access tracking**: Search results prioritized by recent usage
+- **極速搜尋**：比檔案系統掃描快 50-200 倍（<10ms vs 500-2000ms）
+- **即時更新**：檔案監控器自動更新索引（新增/修改/刪除）
+- **智慧自動傳檔**：
+  - 找到 1 個檔案 → 自動傳送
+  - 找到 2-3 個 → 顯示下載按鈕
+  - 找到 4+ 個 → 顯示精簡列表
+- **最近存取追蹤**：搜尋結果依使用頻率排序
 
-### Commands
+### 指令
 
-- `/search <filename>` - Search for files (e.g., `/search config.ts`)
-- `/index_stats` - View index statistics and watcher status
-- `/rebuild_index` - Manually rebuild the index (usually not needed)
+- `/search <檔名>` - 搜尋檔案（例：`/search config.ts`）
+- `/index_stats` - 查看索引統計與監控狀態
+- `/rebuild_index` - 手動重建索引（通常不需要）
 
-### How It Works
+### 運作原理
 
-1. **Startup**: Bot automatically builds file index in background
-2. **Monitoring**: File watcher tracks changes in real-time
-3. **Search**: SQLite index enables instant file lookups
-4. **Auto-send**: Single result? File is sent immediately
+1. **啟動**：Bot 自動在背景建立檔案索引
+2. **監控**：檔案監控器即時追蹤變化
+3. **搜尋**：SQLite 索引實現瞬間查詢
+4. **自動傳送**：只有一個結果？立即傳送檔案
 
-### Performance
+### 效能比較
 
-| Operation   | Before (No Index) | After (With Index)    |
-| ----------- | ----------------- | --------------------- |
-| File search | ~500-2000ms       | <10ms                 |
-| New file    | Manual scan       | Auto-indexed (<100ms) |
-| File change | Manual scan       | Auto-updated (<50ms)  |
-| File delete | Manual scan       | Auto-removed (<10ms)  |
+| 操作     | 之前（無索引） | 之後（有索引）     |
+| -------- | -------------- | ------------------ |
+| 檔案搜尋 | ~500-2000ms    | <10ms              |
+| 新增檔案 | 需手動掃描     | 自動索引（<100ms） |
+| 修改檔案 | 需手動掃描     | 自動更新（<50ms）  |
+| 刪除檔案 | 需手動掃描     | 自動移除（<10ms）  |
 
-## Best Practices
+## 最佳實務
 
-- Run `ctb` from your project directory to auto-set the working directory.
-- Use `ALLOWED_PATHS` to explicitly scope where Claude can read/write.
-- Use `/worktree` for risky changes and `/diff` before `/commit`.
-- Prefer `/new` before unrelated tasks to keep context clean.
-- Use separate Telegram chats for different projects (per-chat sessions).
-- Use `/image`/`/pdf`/`/docx`/`/html` to quickly locate files for `/file`.
-- Enable CLI auth for the Claude SDK to reduce cost and avoid API-key throttling.
+- 從專案目錄執行 `ctb`，自動設定工作目錄。
+- 用 `ALLOWED_PATHS` 明確限制可讀寫範圍。
+- 有風險的變更先用 `/worktree`，並在 `/commit` 前用 `/diff`。
+- 任務切換前用 `/new` 清理上下文。
+- 不同專案用不同 Telegram 聊天室（分聊天室 session）。
+- 先用 `/image`/`/pdf`/`/docx`/`/html` 找檔，再用 `/file` 下載。
+- 建議啟用 Claude SDK 的 CLI 認證，降低成本並避免 API key 限額問題。
 
-## Security
+## 安全性
 
-This bot intentionally bypasses interactive permission prompts for speed. Review the model and safeguards here:
+本機器人刻意略過互動式權限確認以提升速度。請閱讀安全模型與保護機制：
 
-- `SECURITY.md`
+- `SECURITY.zh.md`
 
 ## License
 
