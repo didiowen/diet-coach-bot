@@ -15,9 +15,8 @@
 > - **`WELCOME.md` first-message** — if `WELCOME.md` exists in the working directory, the bot's very first reply in a fresh
 >   session is the verbatim file contents (used for friend onboarding / disclosure).
 > - **Symlink-resolved per-session path bypass** — Read / Write / Edit / Bash paths under `realpath(working_dir)` are allowed
->   in addition to global `ALLOWED_PATHS`, so `~/.claude/skills/*` symlinks into the vault work transparently.
-> - **Codex provider alongside Claude** — switch with `/provider`; Codex worker uses `@openai/codex-sdk` and respects the
->   same per-session cwd bypass.
+>   in addition to global `ALLOWED_PATHS`, so `~/.claude/skills/*` symlinks into the vault work transparently. The Codex
+>   worker is patched to honor the same per-session cwd bypass.
 > - **Aborted-query session auto-clear** — if a query is interrupted before the SDK emits `result`, the session pointer is
 >   dropped so the next message starts fresh instead of resuming a corrupt jsonl that short-circuits to `in=0 out=0` (see
 >   PR [#3](https://github.com/didiowen/diet-coach-bot/pull/3)).

@@ -14,8 +14,7 @@
 > - **`WELCOME.md` 首訊息** —— 若工作目錄裡有 `WELCOME.md`，新 session 的第一則回覆會 verbatim 輸出檔案內容（朋友 onboarding /
 >   免責聲明）。
 > - **Symlink-resolved per-session 路徑放行** —— `realpath(working_dir)` 底下的 Read/Write/Edit/Bash 路徑會額外被放行，
->   所以 `~/.claude/skills/*` symlink 進 vault 也能直接用。
-> - **Codex 與 Claude 雙 provider** —— `/provider` 切換；Codex worker 使用 `@openai/codex-sdk`，同樣支援 per-session cwd 放行。
+>   所以 `~/.claude/skills/*` symlink 進 vault 也能直接用。Codex worker 也 patch 過，同樣套用 per-session cwd 放行。
 > - **中斷 query 自動清掉 session** —— 若 SDK 還沒 emit `result` 之前 query 被打斷（例如回覆還在串流就送下一條），
 >   session pointer 會被丟掉，下一條訊息開新 session，避免 resume 壞掉的 jsonl 觸發 `in=0 out=0` synthetic 短路
 >   （PR [#3](https://github.com/didiowen/diet-coach-bot/pull/3)）。
