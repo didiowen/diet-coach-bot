@@ -126,12 +126,16 @@ class ClaudeSession {
 	// SessionManager reference (set after construction to avoid circular dependency)
 	private _sessionManager: {
 		saveSession(chatId: number): void;
+		clearSession(chatId: number): void;
 	} | null = null;
 
 	/**
 	 * Set the session manager reference for save delegation.
 	 */
-	setSessionManager(manager: { saveSession(chatId: number): void }): void {
+	setSessionManager(manager: {
+		saveSession(chatId: number): void;
+		clearSession(chatId: number): void;
+	}): void {
 		this._sessionManager = manager;
 	}
 
@@ -846,6 +850,22 @@ class ClaudeSession {
 			this.abortController = null;
 			this.queryStarted = null;
 			this.currentTool = null;
+
+			// If the query was aborted before the SDK finalized (no `result` event
+			// and no ask_user handoff), the on-disk session jsonl ends with a
+			// dangling `[Request interrupted by user]` user turn. Resuming it
+			// causes the harness to short-circuit with a synthetic
+			// "No response requested." (in=0 out=0). Drop the session pointer so
+			// the next message starts fresh.
+			if (!queryCompleted && !askUserTriggered && this.sessionId) {
+				console.warn(
+					`Query aborted before completion; clearing session ${this.sessionId.slice(0, 8)}... to prevent resume corruption`,
+				);
+				this.sessionId = null;
+				if (this._chatId !== null && this._sessionManager) {
+					this._sessionManager.clearSession(this._chatId);
+				}
+			}
 		}
 
 		this.lastActivity = new Date();
