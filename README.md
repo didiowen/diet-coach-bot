@@ -62,7 +62,8 @@ there and are sandboxed automatically.
 The system prompt sent to every Claude session ends with:
 
 > *"This bot is dedicated to diet tracking. For ANY user message about food (photos, descriptions, nutrition queries), or
-> any food-related question, use the diet-coach skill at `.claude/skills/diet-coach/SKILL.md` in your working directory."*
+> any food-related question, use the diet-coach skill at `.claude/skills/diet-coach/SKILL.md` in your working directory.
+> Default behavior is diet logging; only deviate when the user explicitly requests something non-diet-related."*
 
 So you provision each working directory (host vault and each friend sandbox) with a `.claude/skills/diet-coach/SKILL.md` —
 this is what the bot reads on every turn. The canonical skill lives in the

@@ -56,7 +56,8 @@ WELCOME.md 首訊息 —— 參見上方 fork 說明與下方 [Diet-coach 模式
 每個 Claude session 的 system prompt 結尾固定加上：
 
 > *"This bot is dedicated to diet tracking. For ANY user message about food (photos, descriptions, nutrition queries), or
-> any food-related question, use the diet-coach skill at `.claude/skills/diet-coach/SKILL.md` in your working directory."*
+> any food-related question, use the diet-coach skill at `.claude/skills/diet-coach/SKILL.md` in your working directory.
+> Default behavior is diet logging; only deviate when the user explicitly requests something non-diet-related."*
 
 所以你要在每個工作目錄（host vault 和每位朋友的沙箱目錄）放好 `.claude/skills/diet-coach/SKILL.md`。bot 每一輪都會讀它。
 canonical skill 放在 [diet-coach](https://github.com/didiowen/diet-coach) repo，symlink 到每個工作目錄即可。
