@@ -127,6 +127,23 @@ class SessionManager {
 	}
 
 	/**
+	 * Clear persisted session pointer for a chat. Used when the prior query
+	 * was aborted before completion so the next message starts a fresh session
+	 * instead of resuming a corrupt one.
+	 */
+	clearSession(chatId: number): void {
+		try {
+			const sessionFile = `${SESSION_DIR}/${chatId}.json`;
+			if (existsSync(sessionFile)) {
+				unlinkSync(sessionFile);
+				console.log(`Cleared session file for chat ${chatId}`);
+			}
+		} catch (error) {
+			console.warn(`Failed to clear session for chat ${chatId}:`, error);
+		}
+	}
+
+	/**
 	 * Load all sessions from disk on startup.
 	 */
 	loadAllSessions(): void {
