@@ -1,30 +1,93 @@
-# Claude Telegram Bot
+# diet-coach-bot
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Bun](https://img.shields.io/badge/Bun-1.0+-black.svg)](https://bun.sh/)
 
-> **Fork notice**: 這是 [htlin222/claude-telegram-bot](https://github.com/htlin222/claude-telegram-bot) 的 fork，
-> 為 [diet-coach](https://github.com/didiowen/diet-coach) 專案做了強化：
-> - Claude model IDs 更新到 4.6/4.7 與 haiku-4-5（upstream 可能落後）
-> - `ALLOWED_PATHS` `~` expansion bug fix
-> - 可選 **multi-tenant 模式**（友善共享 bot 用，預設關閉；設 `CTB_HOST_CHAT_IDS=<chat_id>` 啟用）
-> - 移除 token-usage footer（"Done | XK→YK 🎉"）與 inline action keyboard，降噪
-> - Telegram menu 精簡到 10 個 diet-coach 常用 commands
+> **Fork notice**: This is a fork of [htlin222/claude-telegram-bot](https://github.com/htlin222/claude-telegram-bot) hardened
+> for the [diet-coach](https://github.com/didiowen/diet-coach) deployment, where one host (the vault owner) shares a single
+> Telegram bot with a small number of trusted friends. The general-purpose ctb features below are still available; this fork
+> adds the following diet-coach-specific behaviors on top:
 >
-> 安裝：`npm install -g github:didiowen/diet-coach-bot`（需 Bun ≥ 1.0）
+> - **Multi-tenant sandboxing** — host gets full vault access; each friend's chat is sandboxed to its own per-chat working
+>   directory (`CTB_HOST_CHAT_IDS` opts the host out of the sandbox). Friends cannot read host paths.
+> - **Auto-load diet-coach skill** — every session's system prompt injects a pointer to `.claude/skills/diet-coach/SKILL.md`
+>   in the working directory, so food-related messages always run through the diet skill without explicit `/skill` invocation.
+> - **`WELCOME.md` first-message** — if `WELCOME.md` exists in the working directory, the bot's very first reply in a fresh
+>   session is the verbatim file contents (used for friend onboarding / disclosure).
+> - **Symlink-resolved per-session path bypass** — Read / Write / Edit / Bash paths under `realpath(working_dir)` are allowed
+>   in addition to global `ALLOWED_PATHS`, so `~/.claude/skills/*` symlinks into the vault work transparently. The Codex
+>   worker is patched to honor the same per-session cwd bypass.
+> - **Aborted-query session auto-clear** — if a query is interrupted before the SDK emits `result`, the session pointer is
+>   dropped so the next message starts fresh instead of resuming a corrupt jsonl that short-circuits to `in=0 out=0` (see
+>   PR [#3](https://github.com/didiowen/diet-coach-bot/pull/3)).
+> - **Cosmetic trims** — Telegram menu reduced to 10 diet-coach commands; token-usage footer (`Done | XK→YK 🎉`) and inline
+>   action keyboard removed to keep the chat clean.
+> - **Latest Claude model IDs** — `claude-sonnet-4-6`, `claude-opus-4-7`, `claude-haiku-4-5` (upstream may lag).
 >
-> 其餘文件、功能、安全模型完全沿用 upstream。
+> Install: `npm install -g github:didiowen/diet-coach-bot` (requires Bun ≥ 1.0). Everything else (commands, security model,
+> group chat, file index) is inherited from upstream and documented below.
 
-**Repository description:** A Telegram bot that lets you drive Claude Code from your phone with streaming replies, file tooling, and MCP integrations.
+**Repository description:** A Telegram bot that runs a personal Claude Code (or Codex) coach against a host vault, with
+optional sandboxed access for trusted friends. Diet-tracking is the canonical use case; the underlying ctb is general-purpose.
 
 **中文說明**: [README.zh.md](README.zh.md)
 
 ## Overview
 
-Claude Telegram Bot connects Telegram → Claude Code and streams responses (including tool status) back to your chat. It’s built with Bun + grammY and uses the official Claude Agent SDK.
+`diet-coach-bot` connects Telegram → Claude Code (or Codex) and streams responses (including tool status) back to your chat.
+It is built on Bun + grammY and the official `@anthropic-ai/claude-agent-sdk`. The fork adds a multi-tenant host/friend
+sandbox model, an auto-loaded diet-coach skill, and a verbatim first-message onboarding flow — see the fork notice above
+and the [Diet-coach mode](#diet-coach-mode) section for details.
+
+## Diet-coach mode
+
+The diet-coach-specific behaviors are always active in this fork (there is no on/off switch — they layer on top of ctb).
+
+### Host vs. friend
+
+| Aspect | Host (vault owner) | Friend (sandboxed) |
+|---|---|---|
+| Telegram authorization | `TELEGRAM_ALLOWED_USERS` includes them | Same |
+| Working directory | Bot's `WORKING_DIR` (typically the vault root) | Per-chat sandbox dir, pre-populated in `/tmp/ctb-*/sessions/<chat>.json` before the friend's first DM |
+| File access | Global `ALLOWED_PATHS` + the vault | Their own sandbox dir only (no vault access) |
+| `WELCOME.md` shown on first message | Optional | Recommended — used for onboarding / disclosure |
+| `CTB_HOST_CHAT_IDS` env | Set to the host's chat IDs | Not listed |
+
+Setting `CTB_HOST_CHAT_IDS=<chat_id>,<chat_id>` is what marks specific chats as the host's. Friends' chats are not listed
+there and are sandboxed automatically.
+
+### `.claude/skills/diet-coach/SKILL.md`
+
+The system prompt sent to every Claude session ends with:
+
+> *"This bot is dedicated to diet tracking. For ANY user message about food (photos, descriptions, nutrition queries), or
+> any food-related question, use the diet-coach skill at `.claude/skills/diet-coach/SKILL.md` in your working directory.
+> Default behavior is diet logging; only deviate when the user explicitly requests something non-diet-related."*
+
+So you provision each working directory (host vault and each friend sandbox) with a `.claude/skills/diet-coach/SKILL.md` —
+this is what the bot reads on every turn. The canonical skill lives in the
+[diet-coach](https://github.com/didiowen/diet-coach) repo; symlink it into each working dir.
+
+### `WELCOME.md`
+
+If `WELCOME.md` exists in the working directory, the bot's first reply in a fresh session must be the verbatim file
+contents (no edits, no paraphrasing). Subsequent turns proceed normally. This is the recommended way to deliver onboarding
+text / disclosure language to friends without writing custom code.
+
+### Aborted-query auto-clear
+
+If a query is interrupted before the SDK emits its `result` event (e.g. the user fires a second message while the first is
+still streaming), the session jsonl ends with a dangling `[Request interrupted by user]` user turn. Resuming that session
+causes the Agent SDK to short-circuit with a synthetic `"No response requested."` reply and `in=0 out=0` tokens — every
+subsequent message hangs forever, even across `ctb` restarts. This fork detects the aborted-without-`result` case in the
+session's `finally` block and drops both the in-memory `sessionId` and the on-disk `/tmp/ctb-*/sessions/<chat>.json`
+pointer, so the next message starts a fresh session instead of resuming the corrupt one. PR
+[#3](https://github.com/didiowen/diet-coach-bot/pull/3).
 
 ## Features
 
+- 🥗 **Diet-coach mode** (this fork): host/friend sandboxing, auto-loaded SKILL.md, verbatim WELCOME.md — see [above](#diet-coach-mode)
+- 🤖 **Dual provider**: Claude (default) or Codex — switch per-session with `/provider`
 - 💬 Text, 🎤 voice (with transcript editing), 📸 photos, 📄 documents
 - ⚡ Streaming responses with live tool status
 - 📨 Message queueing while Claude is busy
@@ -52,18 +115,18 @@ Claude Telegram Bot connects Telegram → Claude Code and streams responses (inc
 - **Claude Code CLI** (recommended, for SDK CLI auth)
 - **OpenAI API Key** (optional, for voice transcription)
 
-### Install via npm (Recommended)
+### Install from GitHub (Recommended)
 
-Package: [ctb on npm](https://www.npmjs.com/package/ctb)
+Install this fork directly via the GitHub URL (the upstream `ctb` package on npm is the unforked version):
 
 ```bash
-npm install -g ctb
+npm install -g github:didiowen/diet-coach-bot
 
 # Show setup tutorial
 ctb tut
 
-# Run in any project directory
-cd ~/my-project
+# Run in your vault / working directory
+cd ~/vault
 ctb
 ```
 
@@ -72,8 +135,8 @@ On first run, `ctb` will prompt for your Telegram bot token and allowed user IDs
 ### Install from Source
 
 ```bash
-git clone https://github.com/htlin/claude-telegram-bot
-cd claude-telegram-bot
+git clone https://github.com/didiowen/diet-coach-bot
+cd diet-coach-bot
 
 cp .env.example .env
 # Edit .env with your credentials
@@ -92,6 +155,14 @@ TELEGRAM_ALLOWED_USERS=123456789
 # Optional
 CLAUDE_WORKING_DIR=/path/to/your/folder    # Fallback working directory
 OPENAI_API_KEY=sk-...                      # For voice transcription
+
+# Diet-coach mode (fork-specific)
+CTB_HOST_CHAT_IDS=123456789                # Chat IDs that get the host's full vault access.
+                                           # Any allowed chat NOT listed here is sandboxed to
+                                           # its own per-chat working dir (friend mode).
+ALLOWED_PATHS=~/vault,~/.claude/skills     # Extra paths the host may read/write. `~` is
+                                           # expanded; friends are still capped to their
+                                           # per-session working dir on top of this.
 ```
 
 ### Working Directory
