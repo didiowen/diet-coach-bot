@@ -489,14 +489,23 @@ class ClaudeSession {
 			}
 		}
 
-		// Group chat: tag each message with the sender so multi-user specs can
+		// Group chat: tag each message with the SENDER so multi-user specs can
 		// attribute food to the right person (private DMs are untouched).
+		// Hardening: numeric telegram_id (from ctx, not user text) is the canonical
+		// identity; the display name is sanitized; and any sender tag the body tries
+		// to forge is defanged so members cannot spoof each other.
 		if (
 			ctx?.chat &&
 			(ctx.chat.type === "group" || ctx.chat.type === "supergroup")
 		) {
-			const who = ctx.from?.first_name || username;
-			messageToSend = `[group message from ${who} (telegram_id:${userId})]\n${messageToSend}`;
+			const who = String(ctx.from?.first_name || username || "")
+				.replace(/[\[\]\n\r\u0000-\u001f]/g, " ")
+				.slice(0, 40);
+			const safeBody = messageToSend.replace(
+				/\[group message from /g,
+				"(group message from ",
+			);
+			messageToSend = `[group message from ${who} (telegram_id:${userId})]\n${safeBody}`;
 		}
 
 		// Build SDK V1 options - supports all features
