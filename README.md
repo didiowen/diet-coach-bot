@@ -9,10 +9,12 @@
 >
 > - **多租戶 sandbox** —— host 享有完整 vault 存取；每位朋友的聊天室會被沙箱到自己的 per-chat 工作目錄
 >   （用 `CTB_HOST_CHAT_IDS` 把 host 排除在沙箱外），朋友看不到 host 的檔案。
-> - **自動載入 diet-coach skill** —— 每個 session 的 system prompt 都會注入指向 `.claude/skills/diet-coach/SKILL.md` 的
->   pointer，飲食相關訊息一律走這個 skill，不需要顯式 `/skill`。
-> - **`WELCOME.md` 首訊息** —— 若工作目錄裡有 `WELCOME.md`，新 session 的第一則回覆會 verbatim 輸出檔案內容（朋友 onboarding /
->   免責聲明）。
+> - **自動載入 diet-coach spec** —— 每個 session 的 system prompt 注入指向工作目錄 `CLAUDE.md` 的 pointer（Agent SDK 開機
+>   自動載入為 project context），飲食相關訊息一律走它，不需顯式 `/skill`。（亦相容舊的 `.claude/skills/diet-coach/SKILL.md`。）
+> - **群組問責（多人各記各的）** —— 群組訊息會自動標註發話者（`[group message from <name> (telegram_id:<id>)]`），讓多人在同一個
+>   Telegram 群裡各記各的飲食、彼此公開監督（羞恥心問責）；身分以驗證過的數字 `telegram_id` 為準、有防偽。**已測試可用。**
+> - **`WELCOME.md` 首訊息（條件式）** —— 只有工作目錄裡「存在」`WELCOME.md` 時，新 session 第一則回覆才 verbatim 輸出檔案內容
+>   （朋友 onboarding／免責聲明）；沒有該檔則完全不觸發。
 > - **Symlink-resolved per-session 路徑放行** —— `realpath(working_dir)` 底下的 Read/Write/Edit/Bash 路徑會額外被放行，
 >   所以 `~/.claude/skills/*` symlink 進 vault 也能直接用。Codex worker 也 patch 過，同樣套用 per-session cwd 放行。
 > - **中斷 query 自動清掉 session** —— 若 SDK 還沒 emit `result` 之前 query 被打斷（例如回覆還在串流就送下一條），
@@ -52,21 +54,34 @@ WELCOME.md 首訊息 —— 參見上方 fork 說明與下方 [Diet-coach 模式
 
 `CTB_HOST_CHAT_IDS=<chat_id>,<chat_id>` 是用來「標記哪些 chat 屬於 host」的開關。沒列在裡面的朋友 chat 會自動進入沙箱。
 
-### `.claude/skills/diet-coach/SKILL.md`
+### diet-coach spec（工作目錄 `CLAUDE.md`）
 
 每個 Claude session 的 system prompt 結尾固定加上：
 
 > *"This bot is dedicated to diet tracking. For ANY user message about food (photos, descriptions, nutrition queries), or
-> any food-related question, use the diet-coach skill at `.claude/skills/diet-coach/SKILL.md` in your working directory.
-> Default behavior is diet logging; only deviate when the user explicitly requests something non-diet-related."*
+> any food-related question, follow the diet-coach spec in the `CLAUDE.md` in your working directory (auto-loaded as
+> project context). Default behavior is diet logging; only deviate when the user explicitly requests something non-diet-related."*
 
-所以你要在每個工作目錄（host vault 和每位朋友的沙箱目錄）放好 `.claude/skills/diet-coach/SKILL.md`。bot 每一輪都會讀它。
-canonical skill 放在 [diet-coach](https://github.com/didiowen/diet-coach) repo，symlink 到每個工作目錄即可。
+所以你要在每個工作目錄（host vault 和每位朋友的沙箱目錄）放好 `CLAUDE.md`（Agent SDK 開機會自動載入為 project context）。
+canonical spec 放在 [diet-coach](https://github.com/didiowen/diet-coach) repo，複製或 symlink 成各工作目錄的 `CLAUDE.md` 即可
+（亦相容舊的 `.claude/skills/diet-coach/SKILL.md` skill 安裝法）。
 
 ### `WELCOME.md`
 
 若工作目錄存在 `WELCOME.md`，新 session 第一則回覆必須 verbatim 輸出檔案內容（不修改、不改寫、不額外評論）。
 之後的對話正常進行。這是把 onboarding 文字 / 免責聲明遞給朋友的推薦做法，不需要寫額外程式碼。
+
+### 群組問責（多人各記各的）
+
+把這支 bot 加進一個 Telegram **群組**，多名成員就能在同一個群裡各記各的飲食、彼此公開監督（羞恥心問責）。**已測試可用。**
+
+- 群組／supergroup 訊息（含食物照片）會在送進 Claude 前被自動標上發話者：
+  `[group message from <name> (telegram_id:<id>)]`，所以多人版 spec 能把每則食物歸到正確的人、各寫各的 `diet_log_<slug>.csv`。
+- 發話者身分以「Telegram 驗證過的數字 `telegram_id`」為準（使用者改不了）；顯示名會被 sanitize、內文若想偽造同樣的標籤也會被
+  defang，避免成員互相栽贓。
+- 搭配多人版 spec（見 [diet-coach](https://github.com/didiowen/diet-coach) 的群組模板）：超標就在群裡「公開點名」，形成同儕壓力。
+- 私訊（1-on-1）不加這個標籤，行為不變。
+- BotFather `/setprivacy` → Disable 讓 bot 收得到群裡的一般訊息；只有「你＋bot」兩人的群組會自動回，較多人的群組需 @mention。
 
 ### 中斷 query 自動清 session
 
@@ -79,7 +94,7 @@ PR [#3](https://github.com/didiowen/diet-coach-bot/pull/3)。
 
 ## 功能
 
-- 🥗 **Diet-coach 模式**（本 fork）：host/friend 沙箱、自動載入 SKILL.md、verbatim WELCOME.md —— 見[上方](#diet-coach-模式)
+- 🥗 **Diet-coach 模式**（本 fork）：host/friend 沙箱、自動載入 CLAUDE.md spec、verbatim WELCOME.md、群組問責 —— 見[上方](#diet-coach-模式)
 - 🤖 **雙 provider**：Claude（預設）或 Codex —— 用 `/provider` 切換
 - 💬 文字、🎤 語音（支援轉錄編輯）、📸 圖片、📄 文件
 - ⚡ 串流回覆與工具狀態
