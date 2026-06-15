@@ -346,8 +346,9 @@ export const SHOW_THINKING_MESSAGES =
 
 // When set, the bot responds to EVERY message in groups/supergroups (no @mention
 // needed) — intended for a dedicated diet group where every message is on-topic.
-export const GROUP_AUTO_RESPOND =
-	(process.env.CTB_GROUP_AUTO_RESPOND || "false").toLowerCase() === "true";
+export const GROUP_AUTO_RESPOND = ["1", "true", "yes"].includes(
+	(process.env.CTB_GROUP_AUTO_RESPOND || "").toLowerCase(),
+);
 
 // ============== File Paths ==============
 
