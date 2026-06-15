@@ -489,6 +489,16 @@ class ClaudeSession {
 			}
 		}
 
+		// Group chat: tag each message with the sender so multi-user specs can
+		// attribute food to the right person (private DMs are untouched).
+		if (
+			ctx?.chat &&
+			(ctx.chat.type === "group" || ctx.chat.type === "supergroup")
+		) {
+			const who = ctx.from?.first_name || username;
+			messageToSend = `[group message from ${who} (telegram_id:${userId})]\n${messageToSend}`;
+		}
+
 		// Build SDK V1 options - supports all features
 		const options: Options = {
 			model: modelId,
