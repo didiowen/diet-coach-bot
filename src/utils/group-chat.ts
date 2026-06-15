@@ -76,8 +76,10 @@ export async function isBotMentioned(
 	const message = ctx.message;
 	if (!message) return false;
 
-	const text = message.text || "";
-	const entities = message.entities || [];
+	// Photos/media carry their text + mentions in caption / caption_entities,
+	// not text / entities — so @mentioning the bot on a photo is detected too.
+	const text = message.text || message.caption || "";
+	const entities = message.entities || message.caption_entities || [];
 
 	// Check entities for mentions and bot commands
 	for (const entity of entities) {
