@@ -5,6 +5,7 @@
  */
 
 import type { Context } from "grammy";
+import { GROUP_AUTO_RESPOND } from "../config";
 import { botEvents } from "../events";
 
 // ============== Message Interrupt ==============
@@ -55,6 +56,16 @@ export async function isBotMentioned(
 	// In private chats, always respond
 	if (chat.type === "private") {
 		console.log("[isBotMentioned] ✅ Private chat - always respond");
+		return true;
+	}
+
+	// Opt-in (CTB_GROUP_AUTO_RESPOND=1): respond to every message in a group, no
+	// @mention needed — for a dedicated diet group where every message is on-topic.
+	if (
+		GROUP_AUTO_RESPOND &&
+		(chat.type === "group" || chat.type === "supergroup")
+	) {
+		console.log("[isBotMentioned] ✅ GROUP_AUTO_RESPOND - responding to all group messages");
 		return true;
 	}
 

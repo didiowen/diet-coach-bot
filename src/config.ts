@@ -344,6 +344,11 @@ export const MERGE_TOOL_STATUSES =
 export const SHOW_THINKING_MESSAGES =
 	(process.env.SHOW_THINKING_MESSAGES || "false").toLowerCase() === "true";
 
+// When set, the bot responds to EVERY message in groups/supergroups (no @mention
+// needed) — intended for a dedicated diet group where every message is on-topic.
+export const GROUP_AUTO_RESPOND =
+	(process.env.CTB_GROUP_AUTO_RESPOND || "false").toLowerCase() === "true";
+
 // ============== File Paths ==============
 
 // Generate a short hash for instance isolation
