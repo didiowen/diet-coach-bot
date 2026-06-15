@@ -2,7 +2,7 @@
  * ClaudeSession class - manages Claude Code sessions using the Agent SDK V1.
  */
 
-import { readFileSync, writeFileSync, realpathSync } from "node:fs";
+import { readFileSync, writeFileSync, realpathSync, existsSync } from "node:fs";
 import type { Context } from "grammy";
 import { resolvePath } from "../bookmarks";
 import {
@@ -496,7 +496,7 @@ class ClaudeSession {
 			settingSources: ["user", "project"],
 			permissionMode: this.planMode ? "plan" : "bypassPermissions",
 			allowDangerouslySkipPermissions: !this.planMode,
-			systemPrompt: SAFETY_PROMPT + "\n\nYour current working directory is " + this._workingDir + ". You have full access to files in this directory and its subdirectories (in addition to paths listed above).\n\nThis bot is dedicated to diet tracking. For ANY user message about food (photos, descriptions, nutrition queries), or any food-related question, follow the diet-coach spec in the CLAUDE.md in your working directory (auto-loaded as project context). Default behavior is diet logging; only deviate when the user explicitly requests something non-diet-related.\n\nIMPORTANT FIRST-MESSAGE BEHAVIOR: If this is the very first message in this conversation (no prior turns from you exist), check whether WELCOME.md exists in your working directory. If it exists, your VERY FIRST reply must be the verbatim full content of WELCOME.md (no edits, no paraphrasing, no commentary). Only after that initial greeting do you proceed with the user actual request.",
+			systemPrompt: SAFETY_PROMPT + "\n\nYour current working directory is " + this._workingDir + ". You have full access to files in this directory and its subdirectories (in addition to paths listed above).\n\nThis bot is dedicated to diet tracking. For ANY user message about food (photos, descriptions, nutrition queries), or any food-related question, follow the diet-coach spec in the CLAUDE.md in your working directory (auto-loaded as project context). Default behavior is diet logging; only deviate when the user explicitly requests something non-diet-related." + (existsSync(this._workingDir + "/WELCOME.md") ? "\n\nIMPORTANT FIRST-MESSAGE BEHAVIOR: If this is the very first message in this conversation (no prior turns from you exist), check whether WELCOME.md exists in your working directory. If it exists, your VERY FIRST reply must be the verbatim full content of WELCOME.md (no edits, no paraphrasing, no commentary). Only after that initial greeting do you proceed with the user actual request." : ""),
 			mcpServers: MCP_SERVERS,
 			maxThinkingTokens: thinkingTokens,
 			additionalDirectories: ALLOWED_PATHS,
