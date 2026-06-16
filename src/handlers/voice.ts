@@ -23,6 +23,7 @@ import {
 	startTypingIndicator,
 	transcribeVoice,
 } from "../utils";
+import { downloadTelegramFile } from "../utils/telegram-download";
 
 /**
  * Handle incoming voice messages.
@@ -78,17 +79,9 @@ export async function handleVoice(ctx: Context): Promise<void> {
 	let voicePath: string | null = null;
 
 	try {
-		// 6. Download voice file
-		const file = await ctx.getFile();
-		const timestamp = Date.now();
-		voicePath = `${TEMP_DIR}/voice_${timestamp}.ogg`;
-
-		// Download the file
-		const downloadRes = await fetch(
-			`https://api.telegram.org/file/bot${ctx.api.token}/${file.file_path}`,
-		);
-		const buffer = await downloadRes.arrayBuffer();
-		await Bun.write(voicePath, buffer);
+		// 6. Download voice file (retry on transient Telegram 504 / reset)
+		voicePath = `${TEMP_DIR}/voice_${Date.now()}.ogg`;
+		await downloadTelegramFile(ctx, voicePath);
 
 		// 7. Transcribe
 		const statusMsg = await ctx.reply("🎤 Transcribing...");

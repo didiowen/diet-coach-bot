@@ -9,16 +9,12 @@ import { GrammyError, InlineKeyboard } from "grammy";
 import type { Message } from "grammy/types";
 import {
 	BUTTON_LABEL_MAX_LENGTH,
-	MESSAGE_EFFECTS,
 	STREAMING_THROTTLE_MS,
 	TELEGRAM_MESSAGE_LIMIT,
 	TELEGRAM_SAFE_LIMIT,
-	TOKEN_WARNING_THRESHOLD,
 } from "../config";
 import { convertMarkdownToHtml, escapeHtml } from "../formatting";
 import { safeTelegramCall, withRetry } from "../telegram-api";
-import { sessionManager } from "../session";
-import { effectFor } from "../utils";
 import type { StatusCallback } from "../types";
 import {
 	telegramMessageQueue,
@@ -449,55 +445,9 @@ export function createStatusCallback(
 					}
 				}
 
-				// Build usage info string if available
-				// Action buttons now always shown (not conditional on hasToolExecution)
-				return; /* done footer disabled by patch-ctb.sh */ let doneMessage = "Done";
-				if (usage) {
-					const inK = Math.round(usage.input_tokens / 1000);
-					const outK = Math.round(usage.output_tokens / 1000);
-					const cacheK = usage.cache_read_input_tokens
-						? Math.round(usage.cache_read_input_tokens / 1000)
-						: 0;
-					doneMessage += ` | ${inK}K→${outK}K`;
-					if (cacheK > 0) {
-						doneMessage += ` (⚡${cacheK}K)`;
-					}
-				}
-
-				// Check session total token usage and add warning if needed
-				if (chatId) {
-					const session = sessionManager.getSession(chatId);
-					const totalTokens =
-						session.totalInputTokens + session.totalOutputTokens;
-
-					if (totalTokens > TOKEN_WARNING_THRESHOLD) {
-						const totalK = Math.round(totalTokens / 1000);
-						doneMessage += ` | ⚠️ ${totalK}K total`;
-					}
-				}
-
-				// Show action buttons after response completes (CRITICAL priority)
-				const actionKeyboard = new InlineKeyboard()
-					.text("Undo", "action:undo")
-					.text("Commit", "action:commit")
-					.text("Yes", "action:yes")
-					.text("Handoff", "action:handoff");
-
-				await telegramMessageQueue.enqueue(
-					ctx,
-					MessageType.BUTTON,
-					MessagePriority.CRITICAL,
-					doneMessage,
-					async () => {
-						await telegramRateLimiter.acquireSlot(ctx.chat?.id);
-						return await withRetry(() =>
-							ctx.reply(doneMessage, {
-								/* reply_markup removed by patch-ctb.sh */
-								message_effect_id: effectFor(ctx, MESSAGE_EFFECTS.CONFETTI),
-							}),
-						);
-					},
-				);
+				// Done footer (token usage) + Undo/Commit/Yes/Handoff buttons
+				// removed: noise for a diet bot. (Was disabled via patch-ctb.sh
+				// #5/#8; now deleted at source.)
 			}
 		} catch (error) {
 			console.error("Status callback error:", error);

@@ -237,7 +237,7 @@ export function checkCommandSafety(
 
 		if (index !== -1) {
 			// Check if this is a command word (not part of a string argument)
-			const before = index > 0 ? lowerCommand[index - 1] : " ";
+			const before = index > 0 ? (lowerCommand[index - 1] ?? " ") : " ";
 			const after = index + lowerPattern.length < lowerCommand.length
 				? lowerCommand[index + lowerPattern.length]
 				: " ";

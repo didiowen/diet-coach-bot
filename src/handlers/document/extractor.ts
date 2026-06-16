@@ -7,6 +7,7 @@
 
 import type { Context } from "grammy";
 import { TEMP_DIR } from "../../config";
+import { downloadTelegramFile } from "../../utils/telegram-download";
 import {
 	ARCHIVE_EXTENSIONS,
 	MAX_ARCHIVE_CONTENT,
@@ -23,21 +24,14 @@ export async function downloadDocument(ctx: Context): Promise<string> {
 		throw new Error("No document in message");
 	}
 
-	const file = await ctx.getFile();
 	const fileName = doc.file_name || `doc_${Date.now()}`;
 
 	// Sanitize filename
 	const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
 	const docPath = `${TEMP_DIR}/${safeName}`;
 
-	// Download
-	const response = await fetch(
-		`https://api.telegram.org/file/bot${ctx.api.token}/${file.file_path}`,
-	);
-	const buffer = await response.arrayBuffer();
-	await Bun.write(docPath, buffer);
-
-	return docPath;
+	// Download (retry on transient Telegram 504 / reset)
+	return downloadTelegramFile(ctx, docPath);
 }
 
 /**

@@ -22,6 +22,7 @@ import {
 	isBotMentioned,
 	startTypingIndicator,
 } from "../utils";
+import { downloadTelegramFile } from "../utils/telegram-download";
 import { cleanupTempFiles } from "../utils/temp-cleanup";
 import { createMediaGroupBuffer, handleProcessingError } from "./media-group";
 import { createStatusCallback, StreamingState } from "./streaming";
@@ -42,21 +43,13 @@ async function downloadPhoto(ctx: Context): Promise<string> {
 		throw new Error("No photo in message");
 	}
 
-	// Get the largest photo
-	const file = await ctx.getFile();
-
 	const timestamp = Date.now();
 	const random = Math.random().toString(36).slice(2, 8);
 	const photoPath = `${TEMP_DIR}/photo_${timestamp}_${random}.jpg`;
 
-	// Download
-	const response = await fetch(
-		`https://api.telegram.org/file/bot${ctx.api.token}/${file.file_path}`,
-	);
-	const buffer = await response.arrayBuffer();
-	await Bun.write(photoPath, buffer);
-
-	return photoPath;
+	// ctx.getFile() resolves the largest photo. Download with retry so a
+	// transient Telegram 504 / connection reset doesn't fail the whole message.
+	return downloadTelegramFile(ctx, photoPath);
 }
 
 /**
