@@ -42,7 +42,12 @@ const PENDING_WORKTREE_TIMEOUT_MS = Number.parseInt(
  * Manages Claude Code sessions using the Agent SDK V1.
  */
 class ClaudeSession {
-	sessionId: string | null = null;
+	// Per-directory session memory. Each working dir keeps its own Claude
+	// session_id, so `/cd` away and back resumes that dir's conversation
+	// instead of starting fresh. `sessionId` (accessor below) reflects the
+	// current dir's entry in this map.
+	private _sessionId: string | null = null;
+	private _sessionsByDir: Map<string, string> = new Map();
 	lastActivity: Date | null = null;
 	queryStarted: Date | null = null;
 	currentTool: string | null = null;
@@ -332,15 +337,42 @@ class ClaudeSession {
 		];
 	}
 
+	/** Current working dir's Claude session id (backed by the per-dir map). */
+	get sessionId(): string | null {
+		return this._sessionId;
+	}
+	set sessionId(value: string | null) {
+		this._sessionId = value;
+		// Keep the per-directory map in sync: every assignment (new session,
+		// abort-clear to null, kill) updates the CURRENT dir's entry, so /cd
+		// can resume it later and a cleared/corrupt session is also dropped.
+		if (value) this._sessionsByDir.set(this._workingDir, value);
+		else this._sessionsByDir.delete(this._workingDir);
+	}
+
+	/** Snapshot of dir → session_id for persistence. */
+	get sessionsByDir(): Record<string, string> {
+		return Object.fromEntries(this._sessionsByDir);
+	}
+
+	/** Restore the per-directory session map from disk. */
+	restoreSessionsByDir(map: Record<string, string>): void {
+		this._sessionsByDir = new Map(Object.entries(map));
+	}
+
 	/**
-	 * Change the working directory for future sessions.
-	 * Clears the current session since directory changed.
+	 * Change the working directory. Resumes the target dir's session if one
+	 * exists (else starts fresh). The current dir's session_id is already kept
+	 * in the per-dir map by the sessionId setter, so nothing is lost.
 	 */
 	setWorkingDir(dir: string): void {
 		this._workingDir = dir;
-		// Clear session when changing directory
-		this.sessionId = null;
-		console.log(`Working directory changed to: ${dir}`);
+		// Restore directly to the backing field (bypass the setter, which would
+		// just re-write the same map entry).
+		this._sessionId = this._sessionsByDir.get(dir) ?? null;
+		console.log(
+			`Working directory changed to: ${dir} (memory ${this._sessionId ? "resumed" : "fresh"})`,
+		);
 	}
 
 	get isActive(): boolean {

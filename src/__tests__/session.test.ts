@@ -108,6 +108,58 @@ describe("ClaudeSession", () => {
 		});
 	});
 
+	describe("per-directory session memory", () => {
+		test("a new directory starts with no session", () => {
+			session.setWorkingDir("/tmp/dir-a");
+			expect(session.sessionId).toBeNull();
+		});
+
+		test("resumes a directory's session after /cd away and back", () => {
+			session.setWorkingDir("/tmp/dir-a");
+			session.sessionId = "sess-a";
+			session.setWorkingDir("/tmp/dir-b"); // away → fresh
+			expect(session.sessionId).toBeNull();
+			session.setWorkingDir("/tmp/dir-a"); // back → resumed
+			expect(session.sessionId).toBe("sess-a");
+		});
+
+		test("keeps separate sessions per directory", () => {
+			session.setWorkingDir("/tmp/dir-a");
+			session.sessionId = "sess-a";
+			session.setWorkingDir("/tmp/dir-b");
+			session.sessionId = "sess-b";
+			session.setWorkingDir("/tmp/dir-a");
+			expect(session.sessionId).toBe("sess-a");
+			session.setWorkingDir("/tmp/dir-b");
+			expect(session.sessionId).toBe("sess-b");
+		});
+
+		test("clearing the session (null) drops the dir entry so it won't resume", () => {
+			session.setWorkingDir("/tmp/dir-a");
+			session.sessionId = "sess-a";
+			session.sessionId = null; // e.g. abort-clear
+			session.setWorkingDir("/tmp/dir-b");
+			session.setWorkingDir("/tmp/dir-a");
+			expect(session.sessionId).toBeNull();
+		});
+
+		test("sessionsByDir snapshot round-trips through restore", () => {
+			session.setWorkingDir("/tmp/dir-a");
+			session.sessionId = "sess-a";
+			session.setWorkingDir("/tmp/dir-b");
+			session.sessionId = "sess-b";
+			expect(session.sessionsByDir).toEqual({
+				"/tmp/dir-a": "sess-a",
+				"/tmp/dir-b": "sess-b",
+			});
+
+			const fresh = new ClaudeSession();
+			fresh.restoreSessionsByDir(session.sessionsByDir);
+			fresh.setWorkingDir("/tmp/dir-a");
+			expect(fresh.sessionId).toBe("sess-a");
+		});
+	});
+
 	describe("forceThinking", () => {
 		test("defaults to null", () => {
 			expect(session.forceThinking).toBeNull();

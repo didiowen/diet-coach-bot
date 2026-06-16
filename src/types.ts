@@ -34,6 +34,8 @@ export interface SessionData {
 	session_id: string;
 	saved_at: string;
 	working_dir: string;
+	/** Per-directory session map (dir → session_id) for /cd memory resume. */
+	sessions_by_dir?: Record<string, string>;
 }
 
 // Token usage from Claude

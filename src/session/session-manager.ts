@@ -85,15 +85,22 @@ class SessionManager {
 				return false;
 			}
 
-			session.sessionId = data.session_id;
+			// Restore the per-directory session map. Back-compat: older files
+			// only carry a single session_id + working_dir, so seed the map
+			// from those when sessions_by_dir is absent.
+			const byDir: Record<string, string> = { ...(data.sessions_by_dir ?? {}) };
+			if (data.session_id && data.working_dir && !(data.working_dir in byDir)) {
+				byDir[data.working_dir] = data.session_id;
+			}
+			session.restoreSessionsByDir(byDir);
 			session.lastActivity = new Date();
 
-			if (data.working_dir) {
-				session.setWorkingDir(data.working_dir);
-			}
+			// Set the current dir; setWorkingDir() resumes its session from the
+			// map (this also fixes the prior bug where loading nulled the id).
+			session.setWorkingDir(data.working_dir || WORKING_DIR);
 
 			console.log(
-				`Loaded session for chat ${chatId}: ${(data.session_id ?? "no-id").slice(0, 8)}...`,
+				`Loaded session for chat ${chatId}: ${(session.sessionId ?? "no-id").slice(0, 8)}... (${Object.keys(byDir).length} dir(s))`,
 			);
 			return true;
 		} catch (error) {
@@ -107,16 +114,21 @@ class SessionManager {
 	 */
 	saveSession(chatId: number): void {
 		const session = this.sessions.get(chatId);
-		if (!session?.sessionId) return;
+		if (!session) return;
+		// Persist if ANY directory has a session (not just the current one),
+		// so other dirs' memory survives even when the current dir is fresh.
+		const byDir = session.sessionsByDir;
+		if (Object.keys(byDir).length === 0) return;
 
 		try {
 			const sessionFile = `${SESSION_DIR}/${chatId}.json`;
 			const data: SessionData = {
 				version: SESSION_VERSION,
 				chat_id: chatId,
-				session_id: session.sessionId,
+				session_id: session.sessionId ?? "",
 				saved_at: new Date().toISOString(),
 				working_dir: session.workingDir,
+				sessions_by_dir: byDir,
 			};
 
 			writeFileSync(sessionFile, JSON.stringify(data), { mode: 0o600 });

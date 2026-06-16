@@ -349,8 +349,14 @@ export async function handleCd(ctx: Context): Promise<void> {
 		keyboard.text("\u2795 Add to bookmarks", `bookmark:add:${resolvedPath}`);
 	}
 
-	// Build response message
-	let message = `\u{1F4C1} Changed to: <code>${resolvedPath}</code>\n\nSession cleared. Next message starts fresh.`;
+	// Build response message. Per-directory memory: if this dir has a prior
+	// session it is resumed; otherwise it starts fresh.
+	const resumed = session.sessionId !== null;
+	let message = `\u{1F4C1} Changed to: <code>${resolvedPath}</code>\n\n${
+		resumed
+			? "Resumed this directory's previous session memory."
+			: "No prior memory here — next message starts fresh."
+	}`;
 
 	// Add warning if other sessions use same directory
 	if (conflictingChats.length > 0) {
