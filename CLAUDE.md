@@ -94,11 +94,6 @@ Worktrees are stored in `.worktrees/` inside the project (not a sibling director
 
 **Skills**: Create in `.claude/skills/skill-name.md` (project-local, not global `~/.claude/skills/`).
 
-## Commit Style
-
-Do not add "Generated with Claude Code" footers. Do end commit messages with a
-`Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.
-
 ## Configuration
 
 All config via `.env` (copy from `.env.example`). See `doc/configuration.md` for full reference.
