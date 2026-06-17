@@ -19,6 +19,7 @@ import {
 	TIMEOUT_PROMPT_WAIT_MS,
 	WORKING_DIR,
 } from "../config";
+import { apiErrorMessage } from "../errors";
 import { botEvents } from "../events";
 import { formatToolStatus } from "../formatting";
 import { checkPendingAskUserRequests } from "../handlers/streaming";
@@ -694,6 +695,19 @@ class ClaudeSession {
 
 				// Handle different message types
 				if (event.type === "assistant") {
+					// A transient/terminal API error (e.g. HTTP 529 overloaded ->
+					// "server_error") arrives as an assistant message whose text content
+					// is the raw `API Error: 529 {...}` JSON. Surface a clean message
+					// instead of leaking that JSON, then stop this turn. Leaving
+					// queryCompleted=false lets the finally block clear the half-failed
+					// session so the user's next message starts fresh.
+					if (event.error) {
+						console.error(`Assistant API error: ${event.error}`);
+						const friendly = apiErrorMessage(event.error);
+						await statusCallback("segment_end", friendly, currentSegmentId);
+						forcedResponse = friendly;
+						break;
+					}
 					for (const block of event.message.content) {
 						// Thinking blocks
 						if (block.type === "thinking") {
