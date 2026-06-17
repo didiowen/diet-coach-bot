@@ -96,7 +96,8 @@ Worktrees are stored in `.worktrees/` inside the project (not a sibling director
 
 ## Commit Style
 
-Do not add "Generated with Claude Code" footers or "Co-Authored-By" trailers.
+Do not add "Generated with Claude Code" footers. Do end commit messages with a
+`Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.
 
 ## Configuration
 
