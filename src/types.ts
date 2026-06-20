@@ -86,5 +86,3 @@ export interface PendingMediaGroup {
 	timeout: Timer;
 }
 
-// Bot context with optional message
-export type BotContext = Context;

@@ -16,7 +16,7 @@ import {
 	getMergeInfo,
 	getWorkingTreeStatus,
 	listBranches,
-} from "../../worktree";
+} from "../../git";
 import { BRANCH_LIST_LIMIT, CALLBACK_DATA_LIMIT, checkCommandAuth } from "./utils";
 
 /**

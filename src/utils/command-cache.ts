@@ -43,28 +43,6 @@ function verifyHmac(commandId: string, entry: CacheEntry): boolean {
 }
 
 /**
- * Clean up expired cache entries.
- */
-function cleanupExpired(): void {
-	const now = Date.now();
-	let removed = 0;
-
-	for (const [id, entry] of commandCache) {
-		if (now - entry.timestamp > CACHE_EXPIRATION_MS) {
-			commandCache.delete(id);
-			removed++;
-		}
-	}
-
-	if (removed > 0) {
-		console.debug(`Command cache cleanup: removed ${removed} expired entries`);
-	}
-}
-
-// Run cleanup every minute
-setInterval(cleanupExpired, 60 * 1000);
-
-/**
  * Store a command and return either inline base64 or cache ID.
  * Returns format: "inline:base64data" or "cache:id"
  */
