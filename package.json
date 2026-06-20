@@ -4,7 +4,7 @@
 	"description": "Control Claude Code from Telegram - run multiple bot instances per project",
 	"type": "module",
 	"bin": {
-		"ctb": "./src/cli.ts"
+		"ctb": "./src/cli/index.ts"
 	},
 	"scripts": {
 		"start": "bun run src/bot.ts",
