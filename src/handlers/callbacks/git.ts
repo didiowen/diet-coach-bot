@@ -18,7 +18,7 @@ import {
 	getGitDiff,
 	getMergeInfo,
 	revertAllChanges,
-} from "../../worktree";
+} from "../../git";
 import { createStatusCallback, StreamingState } from "../streaming";
 
 /**

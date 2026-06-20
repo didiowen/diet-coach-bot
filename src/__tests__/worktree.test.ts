@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { sanitizeWorktreeName } from "../worktree";
+import { sanitizeWorktreeName } from "../git";
 
 describe("sanitizeWorktreeName", () => {
 	describe("basic sanitization", () => {

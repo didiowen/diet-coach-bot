@@ -4,12 +4,7 @@
 
 import type { SDKAssistantMessageError } from "@anthropic-ai/claude-agent-sdk";
 
-interface ErrorPattern {
-	pattern: RegExp;
-	message: string;
-}
-
-const ERROR_PATTERNS: ErrorPattern[] = [
+const ERROR_PATTERNS: { pattern: RegExp; message: string }[] = [
 	{
 		pattern: /timeout/i,
 		message:

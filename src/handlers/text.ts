@@ -25,7 +25,7 @@ import {
 	startTypingIndicator,
 } from "../utils";
 import { storeCommand } from "../utils/command-cache";
-import { createOrReuseWorktree } from "../worktree";
+import { createOrReuseWorktree } from "../git";
 import { createStatusCallback, StreamingState } from "./streaming";
 
 /**
