@@ -365,6 +365,22 @@ describe("ClaudeSession", () => {
 			await session.kill();
 			expect(session.currentModel).toBe("opus");
 		});
+
+		test("clears the persisted session on disk via sessionManager", async () => {
+			// Regression: a crashed/corrupt resume id must not survive kill(),
+			// otherwise it is reloaded next message / after restart → crash loop.
+			let clearedChatId: number | null = null;
+			session.setChatId(-5311981241);
+			session.setSessionManager({
+				saveSession: () => {},
+				clearSession: (id: number) => {
+					clearedChatId = id;
+				},
+			});
+			session.sessionId = "stale-session-id";
+			await session.kill();
+			expect(clearedChatId).toBe(-5311981241);
+		});
 	});
 
 	describe("isActive", () => {
