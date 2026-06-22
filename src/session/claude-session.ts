@@ -976,6 +976,13 @@ class ClaudeSession {
 		// Reset checkpoints
 		this._queryInstance = null;
 		this._userMessageUuids = [];
+		// Also drop the persisted session pointer on disk. Without this, a
+		// crashed/corrupt resume id survives the kill and gets reloaded on the
+		// next message and after a restart — a permanent crash loop that Ctrl+C
+		// can't break. Mirrors the in-flight abort guard in runQuery's finally.
+		if (this._chatId !== null && this._sessionManager) {
+			this._sessionManager.clearSession(this._chatId);
+		}
 		console.log("Session cleared");
 	}
 
