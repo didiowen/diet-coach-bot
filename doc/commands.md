@@ -19,7 +19,7 @@
 
 | Command     | Description                               |
 | ----------- | ----------------------------------------- |
-| `/model`    | Switch model (sonnet/opus/haiku)          |
+| `/model`    | Switch model (sonnet/opus/haiku/fable)    |
 | `/provider` | Switch agent provider (claude/codex)      |
 | `/think`    | Set extended thinking level (off/on/deep) |
 | `/plan`     | Toggle planning mode                      |

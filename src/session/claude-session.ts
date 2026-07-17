@@ -60,7 +60,7 @@ class ClaudeSession {
 	lastBotResponse: string | null = null;
 
 	// Model and mode settings
-	currentModel: "sonnet" | "opus" | "haiku" = "sonnet";
+	currentModel: "sonnet" | "opus" | "haiku" | "fable" = "sonnet";
 	forceThinking: number | null = null; // Tokens for next message, then resets
 	planMode = false;
 
@@ -487,9 +487,10 @@ class ClaudeSession {
 
 		// Determine model based on currentModel setting
 		const modelMap = {
-			sonnet: "claude-sonnet-4-6",
-			opus: "claude-opus-4-7",
+			sonnet: "claude-sonnet-5",
+			opus: "claude-opus-4-8",
 			haiku: "claude-haiku-4-5-20251001",
+			fable: "claude-fable-5",
 		};
 		const modelId = modelMap[this.currentModel];
 
@@ -1040,11 +1041,12 @@ class ClaudeSession {
 	 * Estimate cost based on current model and usage.
 	 */
 	estimateCost(): { inputCost: number; outputCost: number; total: number } {
-		// Pricing per 1M tokens (approximate as of 2024)
+		// Pricing per 1M tokens (approximate as of 2026: Sonnet 5, Opus 4.8, Haiku 4.5, Fable 5)
 		const pricing = {
 			sonnet: { input: 3, output: 15 },
-			opus: { input: 15, output: 75 },
-			haiku: { input: 0.25, output: 1.25 },
+			opus: { input: 5, output: 25 },
+			haiku: { input: 1, output: 5 },
+			fable: { input: 10, output: 50 },
 		};
 		const rates = pricing[this.currentModel];
 

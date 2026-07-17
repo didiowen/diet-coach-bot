@@ -61,7 +61,7 @@ Working directory: <code>${workDir}</code>
 /pending - Show queued messages
 
 <b>Model:</b>
-/model - Switch model (sonnet/opus/haiku)
+/model - Switch model (sonnet/opus/haiku/fable)
 /provider - Switch agent provider
 /think - Force extended thinking
 /plan - Toggle planning mode

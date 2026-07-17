@@ -32,16 +32,21 @@ export async function handleModel(ctx: Context): Promise<void> {
 	if (!match) {
 		const current = session.currentModel;
 		await ctx.reply(
-			`\u{1F916} <b>Model Selection</b>\n\nCurrent: <b>${current}</b>\n\nUsage: <code>/model &lt;name&gt;</code>\n\nAvailable:\n\u2022 <code>/model sonnet</code> - Fast, balanced\n\u2022 <code>/model opus</code> - Most capable\n\u2022 <code>/model haiku</code> - Fastest, cheapest`,
+			`\u{1F916} <b>Model Selection</b>\n\nCurrent: <b>${current}</b>\n\nUsage: <code>/model &lt;name&gt;</code>\n\nAvailable:\n\u2022 <code>/model sonnet</code> - Fast, balanced\n\u2022 <code>/model opus</code> - Powerful, capable\n\u2022 <code>/model haiku</code> - Fastest, cheapest\n\u2022 <code>/model fable</code> - Most capable, premium`,
 			{ parse_mode: "HTML" },
 		);
 		return;
 	}
 
 	const modelName = match[1]?.toLowerCase();
-	if (modelName !== "sonnet" && modelName !== "opus" && modelName !== "haiku") {
+	if (
+		modelName !== "sonnet" &&
+		modelName !== "opus" &&
+		modelName !== "haiku" &&
+		modelName !== "fable"
+	) {
 		await ctx.reply(
-			`\u274C Unknown model: ${modelName}\n\nUse: sonnet, opus, or haiku`,
+			`\u274C Unknown model: ${modelName}\n\nUse: sonnet, opus, haiku, or fable`,
 		);
 		return;
 	}

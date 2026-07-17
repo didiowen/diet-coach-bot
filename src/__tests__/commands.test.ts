@@ -18,7 +18,12 @@ function parseModelCommand(text: string): string | null {
 	if (!match) return null;
 
 	const modelName = match[1]?.toLowerCase();
-	if (modelName !== "sonnet" && modelName !== "opus" && modelName !== "haiku") {
+	if (
+		modelName !== "sonnet" &&
+		modelName !== "opus" &&
+		modelName !== "haiku" &&
+		modelName !== "fable"
+	) {
 		return null;
 	}
 
@@ -31,7 +36,10 @@ function parseModelCommand(text: string): string | null {
 function isValidModelName(name: string): boolean {
 	const normalized = name.toLowerCase();
 	return (
-		normalized === "sonnet" || normalized === "opus" || normalized === "haiku"
+		normalized === "sonnet" ||
+		normalized === "opus" ||
+		normalized === "haiku" ||
+		normalized === "fable"
 	);
 }
 
@@ -49,10 +57,15 @@ describe("Model switching logic", () => {
 			expect(parseModelCommand("/model haiku")).toBe("haiku");
 		});
 
+		test("parses valid model name: fable", () => {
+			expect(parseModelCommand("/model fable")).toBe("fable");
+		});
+
 		test("handles case insensitivity", () => {
 			expect(parseModelCommand("/model SONNET")).toBe("sonnet");
 			expect(parseModelCommand("/model Opus")).toBe("opus");
 			expect(parseModelCommand("/model HaIkU")).toBe("haiku");
+			expect(parseModelCommand("/model FaBle")).toBe("fable");
 		});
 
 		test("returns null for invalid model names", () => {
@@ -81,12 +94,14 @@ describe("Model switching logic", () => {
 			expect(isValidModelName("sonnet")).toBe(true);
 			expect(isValidModelName("opus")).toBe(true);
 			expect(isValidModelName("haiku")).toBe(true);
+			expect(isValidModelName("fable")).toBe(true);
 		});
 
 		test("handles case insensitivity", () => {
 			expect(isValidModelName("SONNET")).toBe(true);
 			expect(isValidModelName("Opus")).toBe(true);
 			expect(isValidModelName("HAIKU")).toBe(true);
+			expect(isValidModelName("Fable")).toBe(true);
 		});
 
 		test("rejects invalid model names", () => {
@@ -469,7 +484,7 @@ Working directory: <code>${workDir}</code>
 /pending - Show queued messages
 
 <b>Model:</b>
-/model - Switch model (sonnet/opus/haiku)
+/model - Switch model (sonnet/opus/haiku/fable)
 /provider - Switch agent provider
 /think - Force extended thinking
 /plan - Toggle planning mode

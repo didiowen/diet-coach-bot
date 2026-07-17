@@ -96,6 +96,11 @@ describe("ClaudeSession", () => {
 			expect(session.currentModel).toBe("haiku");
 		});
 
+		test("can be set to fable", () => {
+			session.currentModel = "fable";
+			expect(session.currentModel).toBe("fable");
+		});
+
 		test("can switch between models", () => {
 			session.currentModel = "opus";
 			expect(session.currentModel).toBe("opus");
@@ -267,22 +272,22 @@ describe("ClaudeSession", () => {
 			test("calculates cost for 1M input tokens", () => {
 				session.totalInputTokens = 1_000_000;
 				const cost = session.estimateCost();
-				expect(cost.inputCost).toBe(15); // $15 per 1M input
+				expect(cost.inputCost).toBe(5); // $5 per 1M input
 			});
 
 			test("calculates cost for 1M output tokens", () => {
 				session.totalOutputTokens = 1_000_000;
 				const cost = session.estimateCost();
-				expect(cost.outputCost).toBe(75); // $75 per 1M output
+				expect(cost.outputCost).toBe(25); // $25 per 1M output
 			});
 
 			test("calculates combined cost", () => {
 				session.totalInputTokens = 100_000;
 				session.totalOutputTokens = 50_000;
 				const cost = session.estimateCost();
-				expect(cost.inputCost).toBe(1.5); // $15 * 0.1
-				expect(cost.outputCost).toBe(3.75); // $75 * 0.05
-				expect(cost.total).toBe(5.25);
+				expect(cost.inputCost).toBe(0.5); // $5 * 0.1
+				expect(cost.outputCost).toBe(1.25); // $25 * 0.05
+				expect(cost.total).toBe(1.75);
 			});
 		});
 
@@ -294,22 +299,49 @@ describe("ClaudeSession", () => {
 			test("calculates cost for 1M input tokens", () => {
 				session.totalInputTokens = 1_000_000;
 				const cost = session.estimateCost();
-				expect(cost.inputCost).toBe(0.25); // $0.25 per 1M input
+				expect(cost.inputCost).toBe(1); // $1 per 1M input
 			});
 
 			test("calculates cost for 1M output tokens", () => {
 				session.totalOutputTokens = 1_000_000;
 				const cost = session.estimateCost();
-				expect(cost.outputCost).toBe(1.25); // $1.25 per 1M output
+				expect(cost.outputCost).toBe(5); // $5 per 1M output
 			});
 
 			test("calculates combined cost", () => {
 				session.totalInputTokens = 4_000_000;
 				session.totalOutputTokens = 800_000;
 				const cost = session.estimateCost();
-				expect(cost.inputCost).toBe(1); // $0.25 * 4
-				expect(cost.outputCost).toBe(1); // $1.25 * 0.8
-				expect(cost.total).toBe(2);
+				expect(cost.inputCost).toBe(4); // $1 * 4
+				expect(cost.outputCost).toBe(4); // $5 * 0.8
+				expect(cost.total).toBe(8);
+			});
+		});
+
+		describe("fable pricing", () => {
+			beforeEach(() => {
+				session.currentModel = "fable";
+			});
+
+			test("calculates cost for 1M input tokens", () => {
+				session.totalInputTokens = 1_000_000;
+				const cost = session.estimateCost();
+				expect(cost.inputCost).toBe(10); // $10 per 1M input
+			});
+
+			test("calculates cost for 1M output tokens", () => {
+				session.totalOutputTokens = 1_000_000;
+				const cost = session.estimateCost();
+				expect(cost.outputCost).toBe(50); // $50 per 1M output
+			});
+
+			test("calculates combined cost", () => {
+				session.totalInputTokens = 100_000;
+				session.totalOutputTokens = 50_000;
+				const cost = session.estimateCost();
+				expect(cost.inputCost).toBe(1); // $10 * 0.1
+				expect(cost.outputCost).toBe(2.5); // $50 * 0.05
+				expect(cost.total).toBe(3.5);
 			});
 		});
 
@@ -369,17 +401,17 @@ describe("ClaudeSession", () => {
 		test("clears the persisted session on disk via sessionManager", async () => {
 			// Regression: a crashed/corrupt resume id must not survive kill(),
 			// otherwise it is reloaded next message / after restart → crash loop.
-			let clearedChatId: number | null = null;
+			const cleared: number[] = [];
 			session.setChatId(-5311981241);
 			session.setSessionManager({
 				saveSession: () => {},
 				clearSession: (id: number) => {
-					clearedChatId = id;
+					cleared.push(id);
 				},
 			});
 			session.sessionId = "stale-session-id";
 			await session.kill();
-			expect(clearedChatId).toBe(-5311981241);
+			expect(cleared).toEqual([-5311981241]);
 		});
 	});
 
