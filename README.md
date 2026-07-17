@@ -22,7 +22,8 @@
 >   （PR [#3](https://github.com/didiowen/diet-coach-bot/pull/3)）。
 > - **降噪** —— Telegram menu 精簡到 10 個 diet-coach 常用 commands；移除 token-usage footer（`Done | XK→YK 🎉`）與
 >   inline action keyboard。
-> - **最新 Claude model IDs** —— `claude-sonnet-4-6`、`claude-opus-4-7`、`claude-haiku-4-5`（upstream 可能落後）。
+> - **最新 Claude model IDs** —— `claude-sonnet-5`、`claude-opus-4-8`、`claude-haiku-4-5`，並新增 `fable`
+>   （`claude-fable-5`）選項（upstream 可能落後）。
 >
 > 安裝：`npm install -g github:didiowen/diet-coach-bot`（需 Bun ≥ 1.0）。其他功能、安全模型、群組聊天、檔案索引等
 > 完全沿用 upstream，文件如下。

@@ -22,7 +22,8 @@
 >   PR [#3](https://github.com/didiowen/diet-coach-bot/pull/3)).
 > - **Cosmetic trims** — Telegram menu reduced to 10 diet-coach commands; token-usage footer (`Done | XK→YK 🎉`) and inline
 >   action keyboard removed to keep the chat clean.
-> - **Latest Claude model IDs** — `claude-sonnet-4-6`, `claude-opus-4-7`, `claude-haiku-4-5` (upstream may lag).
+> - **Latest Claude model IDs** — `claude-sonnet-5`, `claude-opus-4-8`, `claude-haiku-4-5`, plus a new `fable`
+>   (`claude-fable-5`) option (upstream may lag).
 >
 > Install: `npm install -g github:didiowen/diet-coach-bot` (requires Bun ≥ 1.0). Everything else (commands, security model,
 > group chat, file index) is inherited from upstream and documented below.
