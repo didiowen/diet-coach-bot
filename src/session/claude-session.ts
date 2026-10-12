@@ -471,6 +471,36 @@ class ClaudeSession {
 			process.env.TELEGRAM_CHAT_ID = String(chatId);
 		}
 
+		// Daily rollover (opt-in via CTB_DAILY_RESET_HOUR, local hour 0-23): if the
+		// last message predates the most recent reset boundary, start fresh. A
+		// long-lived bot otherwise keeps one conversation for weeks, and deleting
+		// session files from outside never reaches the in-memory session.
+		const resetHourRaw = process.env.CTB_DAILY_RESET_HOUR;
+		const resetHour = Number(resetHourRaw);
+		if (
+			resetHourRaw &&
+			Number.isInteger(resetHour) &&
+			resetHour >= 0 &&
+			resetHour < 24 &&
+			this.isActive &&
+			this.lastActivity
+		) {
+			const boundary = new Date();
+			boundary.setHours(resetHour, 0, 0, 0);
+			if (boundary.getTime() > Date.now()) {
+				boundary.setDate(boundary.getDate() - 1);
+			}
+			if (this.lastActivity < boundary) {
+				console.log(
+					`Daily reset: last activity ${this.lastActivity.toISOString()} predates ${boundary.toISOString()} — starting fresh session`,
+				);
+				this.sessionId = null;
+				if (this._chatId !== null && this._sessionManager) {
+					this._sessionManager.clearSession(this._chatId);
+				}
+			}
+		}
+
 		const isNewSession = !this.isActive;
 
 		// Determine thinking tokens - forceThinking overrides keyword detection
@@ -497,23 +527,21 @@ class ClaudeSession {
 		// Store original message for retry functionality
 		this._lastUserMessage = message;
 
-		// Inject current date/time at session start so Claude doesn't need to call a tool for it
-		let messageToSend = message;
+		// Inject current date/time on EVERY message. Injecting only at session start
+		// left resumed sessions anchored to the day they began, so the bot logged
+		// meals under the wrong date days later.
+		const now = new Date();
+		const datePrefix = `[Current date/time: ${now.toLocaleDateString("en-US", {
+			weekday: "long",
+			year: "numeric",
+			month: "long",
+			day: "numeric",
+			hour: "2-digit",
+			minute: "2-digit",
+			timeZoneName: "short",
+		})}]\n\n`;
+		let messageToSend = datePrefix + message;
 		if (isNewSession) {
-			const now = new Date();
-			const datePrefix = `[Current date/time: ${now.toLocaleDateString(
-				"en-US",
-				{
-					weekday: "long",
-					year: "numeric",
-					month: "long",
-					day: "numeric",
-					hour: "2-digit",
-					minute: "2-digit",
-					timeZoneName: "short",
-				},
-			)}]\n\n`;
-
 			// Check for handoff context from previous session
 			const handoff = this.consumeHandoffContext();
 			if (handoff) {
